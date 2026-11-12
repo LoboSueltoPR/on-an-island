@@ -1,18 +1,18 @@
-# Isla
+# On An Island
 
 Una isla flotante para Windows. Vive como una línea finita arriba de la pantalla; la tocás (o pasás el mouse) y se abre con lo que está pasando en tu PC: la canción que suena, lo último que copiaste, un temporizador, tus apps, y avisos que aparecen solos cuando importan.
 
 Es gratis, no tiene cuenta ni premium, y todo lo personal (portapapeles, notificaciones) queda en tu PC.
 
-![Isla abierta con la canción que suena](docs/captura-abierta.png)
+![On An Island abierta con la canción que suena](docs/captura-abierta.png)
 
 ## Instalar
 
-1. Bajá **`Isla-Setup-x.y.z.exe`** de la sección [Releases](../../releases).
+1. Bajá **`On-An-Island-Setup-x.y.z.exe`** de la sección [Releases](../../releases).
 2. Abrilo. Windows puede mostrar "Windows protegió su PC" porque el instalador no está firmado: tocá **Más información → Ejecutar de todas formas**.
 3. Listo: queda un acceso directo en el escritorio y en el menú Inicio, y la isla aparece arriba de la pantalla.
 
-¿No querés instalar nada? Bajá **`Isla-x.y.z-portable.exe`** y abrilo directamente.
+¿No querés instalar nada? Bajá **`On-An-Island-x.y.z-portable.exe`** y abrilo directamente.
 
 Para que arranque con Windows: clic derecho en el ícono de la bandeja → **Iniciar con Windows**.
 
@@ -73,6 +73,16 @@ Para generar el instalador y la versión portable en `dist/`:
 
 ```bash
 npm run dist
+```
+
+### Publicar una versión nueva
+
+1. Subí el número de `version` en `package.json` (por ejemplo `0.5.0` → `0.6.0`).
+2. `npm run dist`
+3. Commit y push, y después:
+
+```bash
+gh release create v0.6.0 dist/On-An-Island-Setup-0.6.0.exe dist/On-An-Island-0.6.0-portable.exe --title "On An Island 0.6.0" --notes "Qué cambió"
 ```
 
 Si falla con "Cannot create symbolic link", activá el Modo de desarrollador de Windows o corré la terminal como administrador una vez.

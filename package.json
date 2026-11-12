@@ -1,7 +1,7 @@
 {
-  "name": "isla",
+  "name": "on-an-island",
   "version": "0.5.0",
-  "description": "Una isla flotante para Windows: música, portapapeles, avisos, temporizador y más, arriba de la pantalla.",
+  "description": "Una isla flotante para Windows: música, portapapeles, avisos y más, arriba de la pantalla.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -12,11 +12,11 @@
     "electron": "33.2.1",
     "electron-builder": "^25.1.8"
   },
-  "productName": "Isla",
+  "productName": "On An Island",
   "author": "Alejo Lobos",
   "build": {
-    "appId": "com.alejolobos.isla",
-    "productName": "Isla",
+    "appId": "com.lobosueltopr.onanisland",
+    "productName": "On An Island",
     "copyright": "MIT",
     "directories": {
       "output": "dist",
@@ -44,13 +44,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Isla",
+      "shortcutName": "On An Island",
       "runAfterFinish": true,
-      "artifactName": "Isla-Setup-${version}.exe",
+      "artifactName": "On-An-Island-Setup-${version}.exe",
       "language": "3082"
     },
     "portable": {
-      "artifactName": "Isla-${version}-portable.exe"
+      "artifactName": "On-An-Island-${version}-portable.exe"
     }
   }
 }

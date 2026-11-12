@@ -10,6 +10,8 @@ const services = require('./services');
 const W = 620, H = 300;
 let win, settingsWin, media, system, tray, clips;
 
+// Los datos (ajustes, portapapeles) siempre en %APPDATA%\isla, aunque cambie el nombre de la app.
+app.setPath('userData', path.join(app.getPath('appData'), 'isla'));
 if (!app.requestSingleInstanceLock()) app.quit();
 // Los .ps1 no se pueden ejecutar desde adentro de app.asar: electron-builder los deja en app.asar.unpacked.
 const unpacked = (p) => p.replace('app.asar' + path.sep, 'app.asar.unpacked' + path.sep);
@@ -206,7 +208,7 @@ function openSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) { settingsWin.show(); settingsWin.focus(); return; }
   settingsWin = new BrowserWindow({
     width: 800, height: 680, minWidth: 640, minHeight: 480, show: false,
-    title: 'Ajustes de Isla', backgroundColor: '#101012', autoHideMenuBar: true,
+    title: 'Ajustes de On An Island', backgroundColor: '#101012', autoHideMenuBar: true,
     titleBarStyle: 'hidden', titleBarOverlay: { color: '#101012', symbolColor: '#c8c8cc', height: 40 },
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
@@ -277,7 +279,7 @@ function onNotif(msg) {
   if (msg.type !== 'notif') return;
   const ex = (settings.notifExclude || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
   if (ex.some((e) => (msg.app || '').toLowerCase().includes(e))) return;
-  if (/^(isla|electron)$/i.test(msg.app || '')) return;
+  if (/^(isla|on an island|electron)$/i.test(msg.app || '')) return;
   const isCall = CALL_RE.test(`${msg.title} ${msg.body}`);
   if (isCall ? !settings.calls : !settings.messages) return;
   send('notif', { ...msg, call: isCall });
@@ -302,7 +304,7 @@ async function fetchLyrics(m) {
   if (!settings.lyrics || !m.active || !m.title) return;
   if (lyricsCache.has(m.key)) { send('lyrics', { key: m.key, lines: lyricsCache.get(m.key) }); return; }
   lyricsCache.set(m.key, null);
-  const headers = { 'User-Agent': 'Isla/0.3 (Windows desktop island)' };
+  const headers = { 'User-Agent': 'OnAnIsland/0.5 (Windows desktop island)' };
   const q = (p) => { const u = new URL('https://lrclib.net/api/' + p); return u; };
   try {
     const title = cleanTitle(m.title), artist = m.artist || '';
@@ -430,7 +432,7 @@ ${m.player}${m.pen ? ' (penal)' : m.own ? ' (en contra)' : ''} ${m.minute}` : ''
   ipcMain.on('hover', (_e, over) => win.setIgnoreMouseEvents(!over, { forward: true }));
 
   tray = new Tray(trayIcon());
-  tray.setToolTip('Isla');
+  tray.setToolTip('On An Island');
   tray.on('click', () => openSettings());
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Ajustes…', click: openSettings },

@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 
-const UA = { 'User-Agent': 'Isla/0.4 (Windows desktop island)' };
+const UA = { 'User-Agent': 'OnAnIsland/0.5 (Windows desktop island)' };
 const getJson = async (url) => { const r = await net.fetch(url, { headers: UA }); if (!r.ok) throw new Error(r.status); return r.json(); };
 
 /* ── Dólar blue (dolarapi.com) ─────────────────────────── */
