@@ -14,7 +14,7 @@ Es gratis, no tiene cuenta ni premium, y todo lo personal (portapapeles, notific
 
 ¿No querés instalar nada? Bajá **`On-An-Island-x.y.z-portable.exe`** y abrilo directamente.
 
-Para que arranque con Windows: clic derecho en el ícono de la bandeja → **Iniciar con Windows**.
+Instalada, se abre sola al prender la PC. Para cambiarlo: **Ajustes → Comportamiento → Abrir al iniciar Windows** (o clic derecho en el ícono de la bandeja).
 
 Requisitos: Windows 10 u 11 (64 bits).
 

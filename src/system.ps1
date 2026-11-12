@@ -1,9 +1,10 @@
-# Puente con el sistema: volumen, batería, app en primer plano, pantalla completa y portapapeles.
+﻿# Puente con el sistema: volumen, batería, app en primer plano, pantalla completa y portapapeles.
 # stdout: una línea JSON cada vez que algo cambia.
 #   { fg, fgName, fgPath, fs, vol, mute, bat, pct, ac, seq }
 # stdin: vol <0..1> | mute
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false  # UTF-8 sin BOM: ñ y acentos bien
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
 $ErrorActionPreference = 'SilentlyContinue'
-[Console]::OutputEncoding = [Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;

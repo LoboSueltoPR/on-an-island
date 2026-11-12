@@ -105,7 +105,24 @@ const send = (ch, payload, ...wins) => {
 let svc = {};
 const broadcast = () => send('settings', withLaunchers(), win, settingsWin);
 
+// Abrir al iniciar Windows. Instalada: su .exe. Portable: el .exe portable (no la copia temporal).
+// En desarrollo: electron.exe con la carpeta del proyecto.
+function loginItem() {
+  if (process.env.PORTABLE_EXECUTABLE_FILE) return { path: process.env.PORTABLE_EXECUTABLE_FILE, args: [] };
+  if (app.isPackaged) return { path: process.execPath, args: [] };
+  return { path: process.execPath, args: [path.resolve(__dirname, '..')] };
+}
+const getOpenAtLogin = () => app.getLoginItemSettings(loginItem()).openAtLogin;
+function setOpenAtLogin(on) {
+  app.setLoginItemSettings({ openAtLogin: !!on, ...loginItem() });
+  buildTrayMenu();
+}
+
 function updateSettings(patch) {
+  if ('openAtLogin' in patch) { // no se guarda en settings.json: lo sabe Windows
+    setOpenAtLogin(patch.openAtLogin);
+    patch = { ...patch }; delete patch.openAtLogin;
+  }
   const prev = settings;
   settings = { ...settings, ...patch };
   if (!Object.values(settings.tabs).some(Boolean)) settings.tabs = { ...settings.tabs, media: true }; // al menos una pestaña
@@ -160,6 +177,7 @@ function withLaunchers() {
   return {
     ...settings,
     appsCount: apps.length,
+    openAtLogin: getOpenAtLogin(),
     claudeHookError,
     launchersInfo: settings.launchers.map((id) => {
       const a = apps.find((x) => x.appId === id);
@@ -434,16 +452,27 @@ ${m.player}${m.pen ? ' (penal)' : m.own ? ' (en contra)' : ''} ${m.minute}` : ''
   tray = new Tray(trayIcon());
   tray.setToolTip('On An Island');
   tray.on('click', () => openSettings());
+  buildTrayMenu();
+
+  // Instalada: la primera vez queda configurada para abrirse al iniciar Windows (se puede apagar en Ajustes).
+  if (app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE && !settings.loginSetupDone) {
+    setOpenAtLogin(true);
+    updateSettings({ loginSetupDone: true });
+  }
+});
+
+function buildTrayMenu() {
+  if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Ajustes…', click: openSettings },
     { label: 'Mostrar u ocultar', click: toggleVisible },
     { type: 'separator' },
-    { label: 'Iniciar con Windows', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
-      click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
+    { label: 'Abrir al iniciar Windows', type: 'checkbox', checked: getOpenAtLogin(),
+      click: (i) => { setOpenAtLogin(i.checked); broadcast(); } },
     { label: 'Recargar', click: () => win.reload() },
     { label: 'Salir', click: () => app.quit() },
   ]));
-});
+}
 
 app.on('window-all-closed', (e) => e.preventDefault());
 app.on('before-quit', () => { app.isQuitting = true; media?.kill(); system?.kill(); globalShortcut.unregisterAll(); });

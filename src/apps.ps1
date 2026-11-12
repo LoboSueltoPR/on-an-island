@@ -1,7 +1,8 @@
-# Lista las apps del menú Inicio con la ruta de su ícono real.
+﻿# Lista las apps del menú Inicio con la ruta de su ícono real.
 # Salida: JSON [{ name, appId, icon }]. icon es un .png (apps de la Store) o un .exe/.ico (apps de escritorio).
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false  # UTF-8 sin BOM: ñ y acentos bien
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
 $ErrorActionPreference = 'SilentlyContinue'
-[Console]::OutputEncoding = [Text.Encoding]::UTF8
 
 $pkgs = @{}
 Get-AppxPackage | ForEach-Object { $pkgs[$_.PackageFamilyName] = $_ }

@@ -1,8 +1,10 @@
-# Puente con Windows SMTC (GlobalSystemMediaTransportControls).
+﻿# Puente con Windows SMTC (GlobalSystemMediaTransportControls).
 # stdout: una línea JSON por evento.
 #   {"type":"state", key, title, artist, app, playing, position, duration, updated}
 #   {"type":"thumb", key, data}   <- llega DESPUÉS del state: el título nunca espera a la carátula
 # stdin: toggle | next | prev | stop | seek <seconds>
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false  # UTF-8 sin BOM: ñ y acentos bien
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
 $ErrorActionPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {

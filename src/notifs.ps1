@@ -1,9 +1,10 @@
-# Puente con las notificaciones de Windows (llamadas y mensajes).
+﻿# Puente con las notificaciones de Windows (llamadas y mensajes).
 # stdout: { type:"notif", id, app, appId, title, body, t, logo }  cuando llega una nueva
 #         { type:"present", ids:[...] }                           cuando cambia la lista (sirve para saber si una llamada terminó)
 #         { type:"denied" }                                       si Windows no da permiso
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false  # UTF-8 sin BOM: ñ y acentos bien
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
 $ErrorActionPreference = 'SilentlyContinue'
-[Console]::OutputEncoding = [Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
   $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
