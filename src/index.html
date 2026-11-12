@@ -70,6 +70,9 @@
     opacity: 0; filter: blur(8px); transform: translateX(-50%) scale(.94); pointer-events: none;
     transition: opacity .14s var(--out), filter .2s var(--out), transform .25s var(--out);
   }
+  /* Lo que no se ve no se anima (ahorra CPU): capas ocultas y vistas de la cápsula que no están en pantalla. */
+  #island:not([data-state=peek]) .peek *, #island:not([data-state=open]) .full *,
+  #island:not([data-peek=music]) .pv.music *, #island:not([data-peek=act]) .pv.act * { animation-play-state: paused !important; }
   #island[data-state=peek] .peek, #island[data-state=open] .full {
     opacity: 1; filter: blur(0); transform: translateX(-50%); pointer-events: auto;
     transition: opacity var(--d-in) .1s var(--out), filter .4s .06s var(--out), transform var(--d) .04s var(--spring);
@@ -1323,6 +1326,8 @@ function paintIdle(now) {
 
 /* ── Bucle de UI ──────────────────────────────────────── */
 let lastTimerActive = false;
+const lineFill = document.querySelector('.line-fill');
+const setVar = (el, k, v) => { if (el['_' + k] !== v) { el['_' + k] = v; el.style.setProperty(k, v); } };
 function tick(t) {
   const now = new Date();
   // timer
@@ -1336,8 +1341,9 @@ function tick(t) {
   const pos = dragging ? dragFrac * dur : currentPos();
   let p = dur ? pos / dur : 0;
   if (timer.running || (timer.mode === 'timer' && timer.remaining < timer.dur)) p = 1 - timer.left() / timer.dur;
-  island.style.setProperty('--p', Math.max(0, Math.min(1, p)).toFixed(4));
-  if (dur) seek.style.setProperty('--p', (pos / dur).toFixed(4));
+  // Solo en los elementos que lo usan y solo si cambió: escribirlo en #island recalcula toda la isla.
+  setVar(lineFill, '--p', Math.max(0, Math.min(1, p)).toFixed(3));
+  if (dur && state === 'open') setVar(seek, '--p', (pos / dur).toFixed(4));
 
   if (state === 'open' && tab === 'media') {
     $('pos').textContent = fmt(pos);
@@ -1367,11 +1373,47 @@ function tick(t) {
   island.classList.toggle('focusing', focusing);
   if (focusing) island.style.setProperty('--tp2', (1 - timer.left() / timer.dur).toFixed(4));
   // la reunión entra y sale sola según la hora
-  if (meetings.length && (t | 0) % 1000 < 17) refreshPeek();
-  requestAnimationFrame(tick);
+  if (meetings.length && Date.now() - lastMeetCheck > 1000) { lastMeetCheck = Date.now(); refreshPeek(); }
+  scheduleTick();
 }
+// Abierta: 60 cuadros por segundo (barra, letra, cronómetro). Línea o cápsula: 4 por segundo alcanza
+// para el progreso y el reloj, y la CPU queda casi en cero.
+let lastMeetCheck = 0, slowT = null;
+function scheduleTick() {
+  clearTimeout(slowT);
+  if (island.dataset.state === 'open' || dragging) requestAnimationFrame(tick);
+  else slowT = setTimeout(() => requestAnimationFrame(tick), 250);
+}
+// Al abrirse, que no espere al próximo cuarto de segundo.
+new MutationObserver(() => { if (island.dataset.state === 'open' && slowT) { clearTimeout(slowT); slowT = null; requestAnimationFrame(tick); } })
+  .observe(island, { attributes: true, attributeFilter: ['data-state'] });
 paintPlaying();
 requestAnimationFrame(tick);
+
+/* ── Animaciones decorativas a 12 cuadros por segundo ─────
+   La ventana es transparente: Windows la redibuja entera en cada cuadro. Las animaciones que no terminan nunca
+   (barras de música, gatito, ruedita de Claude, puntos de micrófono) se pausan y las avanzamos a mano 12 veces
+   por segundo. Se ven igual y la CPU baja muchísimo. Las animaciones cortas (abrir, cerrar) siguen a 60. */
+const DECOR_FPS = 12;
+function decorVisible(el) {
+  if (document.documentElement.dataset.motion === 'off') return false;
+  const s = island.dataset.state;
+  if (el.closest('.full')) return s === 'open';
+  if (el.closest('.peek')) { if (s !== 'peek') return false; const pv = el.closest('.pv'); return !pv || pv.classList.contains(island.dataset.peek); }
+  return true; // gatito, ruedita de Claude, puntos de micrófono: fuera de la isla
+}
+const decor = new WeakMap(); // animación → momento en que arrancó
+setInterval(() => {
+  const now = document.timeline.currentTime;
+  for (const a of document.getAnimations()) {
+    if (!(a instanceof CSSAnimation) || a.effect?.getTiming().iterations !== Infinity) continue;
+    if (!decor.has(a)) { decor.set(a, now - (a.currentTime || 0)); a.pause(); }
+    // Si no se ve (capa oculta o vista de la cápsula que no está), no la avanzamos.
+    const el = a.effect.target;
+    if (!el || !decorVisible(el)) continue;
+    a.currentTime = now - decor.get(a);
+  }
+}, 1000 / DECOR_FPS);
 </script>
 </body>
 </html>
