@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Ajustes de Isla</title>
+<style>
+  :root {
+    --bg: #101012; --panel: #18181b; --line: #26262a; --fg: #ededf0; --muted: #8b8b93; --hover: #222226;
+    --sel: #ededf0; --ink: #000; --accent: #7DD3FC; --line-w: 140px; --line-h: 4px;
+    --spring: linear(0, .034 2%, .13 4.3%, .27 6.8%, .53 11.5%, .74 16.5%, .88 21.5%, .97 27%, 1.02 33%, 1.033 39%, 1.028 46%, 1.012 57%, 1.002 70%, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { background: var(--bg); color: var(--fg); font: 13.5px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  body { min-height: 100vh; }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  header { height: 40px; -webkit-app-region: drag; display: flex; align-items: center; padding: 0 16px; color: var(--muted); font-size: 12px; }
+  main { max-width: 640px; margin: 0 auto; padding: 8px 28px 48px; }
+
+  /* ── Vista previa: los tres estados con tus colores ── */
+  .preview {
+    position: relative; height: 196px; border-radius: 18px; margin-bottom: 30px; overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 0%, #2c2f3a 0%, #17181d 70%);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .preview .stage { position: absolute; inset: 0; display: flex; justify-content: center; }
+  .pv {
+    margin-top: 10px; background: var(--ink); position: relative; overflow: hidden;
+    width: var(--line-w); height: var(--line-h); border-radius: calc(var(--line-h) / 2);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+    transition: width .55s var(--spring), height .55s var(--spring), border-radius .55s var(--spring), background-color .3s;
+  }
+  .pv::after { content: ''; position: absolute; inset: 0; width: 38%; background: var(--accent); opacity: .85; transition: opacity .2s; }
+  .pv[data-s=peek] { width: 250px; height: 34px; border-radius: 17px; }
+  .pv[data-s=open] { width: 360px; height: 128px; border-radius: 28px; }
+  .pv:not([data-s=line])::after { opacity: 0; }
+  .pv .in { position: absolute; inset: 0; opacity: 0; transition: opacity .2s; }
+  .pv[data-s=peek] .peek, .pv[data-s=open] .full { opacity: 1; transition: opacity .3s .12s; }
+  .pv .peek { display: flex; align-items: center; gap: 9px; padding: 0 12px 0 6px; }
+  .pv .cover { border-radius: 6px; flex: none; background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 30%, #000)); }
+  .pv .peek .cover { width: 22px; height: 22px; }
+  .pv .t { height: 7px; border-radius: 4px; background: var(--pfg); opacity: .9; }
+  .pv .m { height: 6px; border-radius: 3px; background: var(--pfg); opacity: .4; }
+  .pv .eq { margin-left: auto; display: flex; gap: 2px; align-items: center; height: 12px; }
+  .pv .eq i { width: 2.5px; border-radius: 2px; background: var(--accent); }
+  .pv .full { padding: 16px 18px; }
+  .pv .full .row { display: flex; gap: 12px; align-items: center; }
+  .pv .full .cover { width: 46px; height: 46px; border-radius: 12px; }
+  .pv .full .bar { margin-top: 16px; height: 4px; border-radius: 2px; background: color-mix(in oklab, var(--pfg) 14%, transparent); overflow: hidden; }
+  .pv .full .bar::before { content: ''; display: block; width: 38%; height: 100%; background: var(--accent); }
+  .pv .full .dots { display: flex; gap: 8px; margin-top: 14px; }
+  .pv .full .dots i { width: 18px; height: 18px; border-radius: 6px; background: color-mix(in oklab, var(--pfg) 14%, transparent); }
+  .pv .play { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: var(--pfg); }
+  .preview .tabs { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; }
+
+  /* ── Secciones ── */
+  section { margin-bottom: 30px; }
+  h2 { font: 600 15px/1.2 "Segoe UI Variable Display", "Segoe UI", sans-serif; margin: 0 0 10px 2px; }
+  .card { background: var(--panel); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+  .row { display: flex; align-items: center; gap: 16px; padding: 13px 16px; min-height: 56px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row .lbl { flex: 1; min-width: 0; }
+  .row .lbl small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+  /* segmentado */
+  .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: #0c0c0e; box-shadow: inset 0 0 0 1px var(--line); position: relative; }
+  .seg button { all: unset; cursor: pointer; padding: 5px 12px; border-radius: 7px; color: var(--muted); font-size: 12.5px; position: relative; z-index: 1; transition: color .2s; white-space: nowrap; }
+  .seg button[aria-pressed=true] { color: #0c0c0e; }
+  .seg .knob { position: absolute; top: 3px; bottom: 3px; border-radius: 7px; background: var(--sel); transition: left .4s var(--spring), width .4s var(--spring); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); }
+  .preview .seg { background: rgba(0,0,0,.45); backdrop-filter: blur(8px); }
+
+  /* colores */
+  .swatches { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .sw { all: unset; cursor: pointer; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); transition: transform .25s var(--spring); position: relative; }
+  .sw:hover { transform: scale(1.12); }
+  .sw[aria-pressed=true]::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; box-shadow: 0 0 0 2px var(--fg); }
+  .sw.custom { display: grid; place-items: center; background: conic-gradient(#f87171, #fbbf24, #a3e635, #22d3ee, #818cf8, #f472b6, #f87171); overflow: hidden; }
+  .sw.custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .hex { font: 12px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--muted); width: 64px; text-align: right; }
+
+  /* slider */
+  .slider { display: flex; align-items: center; gap: 10px; }
+  .slider output { width: 40px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 180px; height: 4px; border-radius: 2px; background: linear-gradient(var(--sel), var(--sel)) 0 / var(--fill, 50%) 100% no-repeat, #2c2c31; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--fg); box-shadow: 0 1px 4px rgba(0,0,0,.5); transition: transform .2s var(--spring); }
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.2); }
+
+  /* switch */
+  .sw-toggle { all: unset; cursor: pointer; width: 40px; height: 24px; border-radius: 12px; background: #2c2c31; position: relative; transition: background .2s; flex: none; }
+  .sw-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .35s var(--spring); }
+  .sw-toggle[aria-checked=true] { background: #34c759; }
+  .sw-toggle[aria-checked=true]::after { transform: translateX(16px); }
+
+  /* atajo */
+  .keys { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 8px; background: #0c0c0e; box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; min-width: 70px; text-align: center; }
+  .keys.rec { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
+
+  /* apps */
+  .apps .app { display: flex; align-items: center; gap: 12px; padding: 9px 10px 9px 14px; }
+  .apps .app + .app { border-top: 1px solid var(--line); }
+  .apps .app img, .apps .app .ph { width: 26px; height: 26px; object-fit: contain; flex: none; }
+  .apps .app .ph { display: grid; place-items: center; color: var(--muted); }
+  .apps .app span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { all: unset; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); transition: background .15s, color .15s; }
+  .icon-btn:hover { background: var(--hover); color: var(--fg); }
+  .icon-btn:disabled { opacity: .25; pointer-events: none; }
+  .apps .empty { padding: 18px 16px; color: var(--muted); }
+  .add-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+  .btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px; background: var(--hover); font-size: 12.5px; transition: background .15s; }
+  .btn:hover { background: #2c2c31; }
+  .btn.ghost { background: none; color: var(--muted); }
+  .btn.ghost:hover { color: var(--fg); background: var(--hover); }
+
+  /* buscador de apps */
+  .picker { display: none; border-top: 1px solid var(--line); }
+  .picker.on { display: block; animation: drop .35s var(--spring); }
+  @keyframes drop { from { opacity: 0; transform: translateY(-6px); } }
+  .search { display: flex; align-items: center; gap: 10px; padding: 10px 14px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .search input { all: unset; flex: 1; color: var(--fg); }
+  .results { max-height: 260px; overflow: auto; padding: 4px; }
+  .results button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; }
+  .results button:hover, .results button:focus-visible { background: var(--hover); }
+  .results img, .results .ph { width: 22px; height: 22px; object-fit: contain; flex: none; color: var(--muted); display: grid; place-items: center; }
+  .results .none { padding: 14px 10px; color: var(--muted); }
+
+  input.text { all: unset; display: block; box-sizing: border-box; width: 100%; margin-top: 10px; padding: 8px 11px; border-radius: 9px; background: #0c0c0e; box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; }
+  input.text:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .btn.danger { color: #ff8a80; }
+  .btn.danger.confirm { background: #5c1d1a; color: #fff; }
+
+  footer { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; }
+  ::-webkit-scrollbar { width: 10px; } ::-webkit-scrollbar-thumb { background: #2c2c31; border-radius: 5px; border: 3px solid var(--panel); }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header>Ajustes de Isla</header>
+<main>
+
+  <div class="preview" aria-label="Vista previa">
+    <div class="stage">
+      <div class="pv" id="pv" data-s="line">
+        <div class="in peek"><div class="cover"></div><div class="t" style="width:110px"></div><div class="eq"><i style="height:6px"></i><i style="height:12px"></i><i style="height:8px"></i><i style="height:10px"></i></div></div>
+        <div class="in full">
+          <div class="row"><div class="cover"></div><div style="flex:1"><div class="t" style="width:120px"></div><div class="m" style="width:70px;margin-top:7px"></div></div><div class="play"></div></div>
+          <div class="bar"></div>
+          <div class="dots"><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="tabs"><div class="seg" id="pvSeg" data-opts="line:Línea,peek:Cápsula,open:Abierta"></div></div>
+  </div>
+
+  <section>
+    <h2>Colores</h2>
+    <div class="card">
+      <div class="row">
+        <div class="lbl">Isla</div>
+        <div class="swatches" id="islandSw" data-key="islandColor" data-presets="#000000,#0A1224,#1C1C1E,#231A33,#0F2219,#F2F2F4"></div>
+        <span class="hex" id="islandHex"></span>
+      </div>
+      <div class="row">
+        <div class="lbl">Acento<small>La línea de progreso, el ecualizador y el brillo.</small></div>
+        <div class="seg" data-key="accentMode" data-opts="cover:De la carátula,fixed:Fijo"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Color de acento<small id="accentHint"></small></div>
+        <div class="swatches" id="accentSw" data-key="accentColor" data-presets="#7DD3FC,#00E5FF,#A3E635,#F472B6,#FBBF24,#C4B5FD,#FFFFFF"></div>
+        <span class="hex" id="accentHex"></span>
+      </div>
+      <div class="row">
+        <div class="lbl">Fondo con la carátula<small>La isla abierta toma los colores del disco, difuminados.</small></div>
+        <button class="sw-toggle" role="switch" data-key="ambientArt" aria-label="Fondo con la carátula"></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Estilo</h2>
+    <div class="card">
+      <div class="row">
+        <div class="lbl">Barra de progreso</div>
+        <div class="seg" data-key="seekStyle" data-opts="line:Línea,wave:Onda,bars:Ecualizador"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Reloj cuando no suena nada</div>
+        <div class="seg" data-key="clockStyle" data-opts="classic:Clásico,bold:Grande,dots:Puntos"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Formato de 24 horas</div>
+        <button class="sw-toggle" role="switch" data-key="clock24h" aria-label="Formato de 24 horas"></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pestañas</h2>
+    <div class="card">
+      <div class="row"><div class="lbl">Música</div><button class="sw-toggle" role="switch" data-key="tabs.media" aria-label="Pestaña música"></button></div>
+      <div class="row"><div class="lbl">Portapapeles</div><button class="sw-toggle" role="switch" data-key="tabs.clipboard" aria-label="Pestaña portapapeles"></button></div>
+      <div class="row"><div class="lbl">Temporizador y cronómetro</div><button class="sw-toggle" role="switch" data-key="tabs.timer" aria-label="Pestaña temporizador"></button></div>
+      <div class="row"><div class="lbl">Apps</div><button class="sw-toggle" role="switch" data-key="tabs.apps" aria-label="Pestaña apps"></button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Actividades</h2>
+    <div class="card">
+      <div class="row"><div class="lbl">Llamadas<small>WhatsApp, Teams o Zoom: foto, nombre y botón para ir a la app.</small></div><button class="sw-toggle" role="switch" data-key="calls" aria-label="Llamadas"></button></div>
+      <div class="row"><div class="lbl">Mensajes<small>Las notificaciones de Windows aparecen en la isla.</small>
+        <input class="text" data-key="notifExclude" spellcheck="false" placeholder="Apps que no querés ver, separadas por coma"></div>
+        <button class="sw-toggle" role="switch" data-key="messages" aria-label="Mensajes"></button></div>
+      <div class="row"><div class="lbl">Próxima reunión<small>Cinco minutos antes, con cuenta regresiva y botón para entrar. Pegá la dirección secreta en formato iCal de tu Google Calendar (Configuración → tu calendario → Integrar calendario).</small>
+        <input class="text" data-key="calendarIcs" spellcheck="false" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"></div>
+        <button class="sw-toggle" role="switch" data-key="meetings" aria-label="Próxima reunión"></button></div>
+      <div class="row"><div class="lbl">Descargas<small>Lo que bajás se ve mientras baja; al terminar, click y se abre.</small></div><button class="sw-toggle" role="switch" data-key="downloads" aria-label="Descargas"></button></div>
+      <div class="row"><div class="lbl">Capturas<small>Win+Shift+S y la miniatura cae en la isla. Arrastrala a cualquier app.</small></div><button class="sw-toggle" role="switch" data-key="screenshots" aria-label="Capturas"></button></div>
+      <div class="row"><div class="lbl">Micrófono y cámara<small>Un punto naranja o verde al lado de la isla cuando una app los usa.</small></div><button class="sw-toggle" role="switch" data-key="privacyDots" aria-label="Micrófono y cámara"></button></div>
+      <div class="row"><div class="lbl">Borde de foco<small>Con el temporizador andando, el borde de la isla se va llenando.</small></div><button class="sw-toggle" role="switch" data-key="focusBorder" aria-label="Borde de foco"></button></div>
+      <div class="row"><div class="lbl">Claude Code<small id="claudeHint">Muestra qué está haciendo Claude, avisa si necesita permiso y cuando termina. Agrega hooks a tu configuración de Claude Code sin tocar los otros.</small></div><button class="sw-toggle" role="switch" data-key="claudeCode" aria-label="Claude Code"></button></div>
+      <div class="row"><div class="lbl">Dólar blue<small>Se alterna con el reloj cuando no suena nada. Datos de dolarapi.com.</small></div><button class="sw-toggle" role="switch" data-key="dolar" aria-label="Dólar blue"></button></div>
+      <div class="row"><div class="lbl">Partido en vivo<small>Resultado y minuto mientras juega tu equipo; se festeja cada gol.</small>
+        <input class="text" data-key="footballTeam" spellcheck="false" placeholder="Argentina, Boca, River…"></div>
+        <button class="sw-toggle" role="switch" data-key="football" aria-label="Partido en vivo"></button></div>
+      <div class="row"><div class="lbl">Avisos de gol<small>Cada gol de las ligas elegidas y de los equipos que pongas acá, en cualquier torneo. Separalos con comas.</small>
+        <input class="text" data-key="goalTeams" spellcheck="false" placeholder="Barcelona, Real Madrid…"></div>
+        <button class="sw-toggle" role="switch" data-key="goalAlerts" aria-label="Avisos de gol"></button></div>
+      <div class="row"><div class="lbl">Champions League<small>Todos los goles.</small></div><button class="sw-toggle" role="switch" data-key="goalLeagues.ucl" aria-label="Champions League"></button></div>
+      <div class="row"><div class="lbl">Premier League<small>Todos los goles.</small></div><button class="sw-toggle" role="switch" data-key="goalLeagues.epl" aria-label="Premier League"></button></div>
+      <div class="row"><div class="lbl">Liga Profesional Argentina<small>Todos los goles.</small></div><button class="sw-toggle" role="switch" data-key="goalLeagues.arg" aria-label="Liga Profesional Argentina"></button></div>
+      <div class="row"><div class="lbl">Gol con la isla oculta<small>Si estás en pantalla completa, el gol llega como notificación de Windows.</small></div><button class="sw-toggle" role="switch" data-key="goalWindows" aria-label="Gol con la isla oculta"></button></div>
+      <div class="row"><div class="lbl">Gatito en la línea<small>Camina colgado de la línea con música y se sienta cuando no suena nada.</small></div><button class="sw-toggle" role="switch" data-key="pet" aria-label="Gatito"></button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Música</h2>
+    <div class="card">
+      <div class="row">
+        <div class="lbl">Letras sincronizadas<small>Las busca en lrclib.net con el nombre del tema y el artista.</small></div>
+        <button class="sw-toggle" role="switch" data-key="lyrics" aria-label="Letras sincronizadas"></button>
+      </div>
+      <div class="row">
+        <div class="lbl">Asomarse al cambiar de canción<small>Muestra la cápsula unos segundos y vuelve.</small></div>
+        <button class="sw-toggle" role="switch" data-key="peekOnTrackChange" aria-label="Asomarse al cambiar de canción"></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Avisos</h2>
+    <div class="card">
+      <div class="row"><div class="lbl">Volumen<small>Aparece cuando cambiás el volumen.</small></div><button class="sw-toggle" role="switch" data-key="popVolume" aria-label="Aviso de volumen"></button></div>
+      <div class="row"><div class="lbl">Cambiar el volumen con la rueda<small>Girá la rueda sobre la isla.</small></div><button class="sw-toggle" role="switch" data-key="scrollVolume" aria-label="Volumen con la rueda"></button></div>
+      <div class="row"><div class="lbl">Batería<small>Al enchufar, desenchufar y con poca carga.</small></div><button class="sw-toggle" role="switch" data-key="popBattery" aria-label="Aviso de batería"></button></div>
+      <div class="row"><div class="lbl">Copiado<small>Muestra de qué app copiaste algo.</small></div><button class="sw-toggle" role="switch" data-key="popClipboard" aria-label="Aviso de copiado"></button></div>
+      <div class="row"><div class="lbl">Sonido al terminar el temporizador</div><button class="sw-toggle" role="switch" data-key="timerSound" aria-label="Sonido del temporizador"></button></div>
+      <div class="row"><div class="lbl">Esconder en pantalla completa<small>Videos, juegos y presentaciones.</small></div><button class="sw-toggle" role="switch" data-key="autoHideFullscreen" aria-label="Esconder en pantalla completa"></button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Portapapeles</h2>
+    <div class="card">
+      <div class="row">
+        <div class="lbl">Guardar lo que copio<small>Queda solo en esta PC.</small></div>
+        <button class="sw-toggle" role="switch" data-key="clipEnabled" aria-label="Guardar historial del portapapeles"></button>
+      </div>
+      <div class="row">
+        <div class="lbl">Borrar automáticamente<small>Los clips fijados no se borran nunca.</small></div>
+        <div class="seg" data-key="clipRetentionDays" data-num="1" data-opts="1:1 día,7:7 días,30:30 días,0:Nunca"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Máximo de clips</div>
+        <div class="seg" data-key="clipMax" data-num="1" data-opts="50:50,100:100,200:200,500:500"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">No guardar desde estas apps<small>Separadas por coma. Ya vienen los gestores de contraseñas más comunes.</small>
+          <input class="text" id="clipExclude" spellcheck="false" placeholder="Bitwarden, 1Password"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Historial<small id="clipCount"></small></div>
+        <button class="btn danger" id="clipClear"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg><span>Borrar historial</span></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Línea</h2>
+    <div class="card">
+      <div class="row"><div class="lbl">Ancho</div><div class="slider"><input type="range" data-key="lineWidth" min="60" max="320" step="2"><output></output></div></div>
+      <div class="row"><div class="lbl">Grosor</div><div class="slider"><input type="range" data-key="lineThickness" min="2" max="12" step="1"><output></output></div></div>
+      <div class="row"><div class="lbl">Separación del borde</div><div class="slider"><input type="range" data-key="topOffset" min="0" max="40" step="1"><output></output></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Comportamiento</h2>
+    <div class="card">
+      <div class="row">
+        <div class="lbl">En reposo se ve como<small>Cómo queda cuando no la estás usando.</small></div>
+        <div class="seg" data-key="idleMode" data-opts="line:Línea,capsule:Cápsula"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Se abre con<small id="openHint"></small></div>
+        <div class="seg" data-key="openOn" data-opts="click:Click,hover:Pasar el mouse"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Animación</div>
+        <div class="seg" data-key="motion" data-opts="gentle:Suave,snappy:Rápida,off:Sin animación"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Atajo para mostrar u ocultar<small>Hacé click y apretá la combinación.</small></div>
+        <button class="keys" id="hotkey"></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Apps rápidas</h2>
+    <div class="card">
+      <div class="row">
+        <div class="lbl">Mostrar en la isla abierta</div>
+        <button class="sw-toggle" role="switch" data-key="showLaunchers" aria-label="Mostrar apps rápidas"></button>
+      </div>
+      <div class="apps" id="apps"></div>
+      <div class="add-row">
+        <button class="btn" id="addBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Agregar app</button>
+        <button class="btn ghost" id="exeBtn"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Elegir un .exe</button>
+      </div>
+      <div class="picker" id="picker">
+        <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Buscar entre tus apps" autocomplete="off"></label>
+        <div class="results" id="results"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Los cambios se guardan solos.</span>
+    <button class="btn ghost" id="reset"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Restablecer</button>
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ICON = {
+  up: '<svg class="i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>',
+  down: '<svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  remove: '<svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  app: '<svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4.5"/><path d="M4 9h16"/></svg>',
+};
+let S = {}, allApps = [];
+const icons = new Map();
+const iconOf = (appId) => { if (!icons.has(appId)) icons.set(appId, isla.icon(appId)); return icons.get(appId); };
+const set = (patch) => { Object.assign(S, patch); paint(); isla.set(patch); };
+// "tabs.media" → S.tabs.media
+const getKey = (k) => k.includes('.') ? S[k.split('.')[0]]?.[k.split('.')[1]] : S[k];
+const setKey = (k, v) => {
+  if (!k.includes('.')) return set({ [k]: v });
+  const [a, b] = k.split('.');
+  set({ [a]: { ...S[a], [b]: v } });
+};
+
+/* ── Controles segmentados (con perilla animada) ── */
+function buildSeg(el, onPick) {
+  el.innerHTML = '<span class="knob"></span>' + el.dataset.opts.split(',').map((o) => {
+    const [v, label] = o.split(':'); return `<button type="button" data-v="${v}">${label}</button>`;
+  }).join('');
+  el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => onPick(b.dataset.v)));
+}
+function paintSeg(el, value) {
+  let on;
+  el.querySelectorAll('button').forEach((b) => { const p = b.dataset.v === value; b.setAttribute('aria-pressed', p); if (p) on = b; });
+  const k = el.querySelector('.knob');
+  if (on) { k.style.left = on.offsetLeft + 'px'; k.style.width = on.offsetWidth + 'px'; }
+}
+document.querySelectorAll('.seg[data-key]').forEach((el) => buildSeg(el, (v) => setKey(el.dataset.key, el.dataset.num ? +v : v)));
+
+/* ── Vista previa ── */
+let pvState = 'line', pvLocked = false;
+buildSeg($('pvSeg'), (v) => { pvState = v; pvLocked = true; paint(); });
+
+/* ── Colores ── */
+function buildSwatches(el) {
+  const key = el.dataset.key;
+  el.innerHTML = el.dataset.presets.split(',').map((c) => `<button class="sw" style="background:${c}" data-c="${c}" title="${c}" aria-label="Color ${c}"></button>`).join('')
+    + `<label class="sw custom" title="Otro color"><input type="color"></label>`;
+  el.querySelectorAll('.sw[data-c]').forEach((b) => b.addEventListener('click', () => set({ [key]: b.dataset.c })));
+  el.querySelector('input').addEventListener('input', (e) => set({ [key]: e.target.value.toUpperCase() }));
+}
+buildSwatches($('islandSw')); buildSwatches($('accentSw'));
+function paintSwatches(el, value) {
+  let preset = false;
+  el.querySelectorAll('.sw[data-c]').forEach((b) => { const p = b.dataset.c.toLowerCase() === value.toLowerCase(); preset ||= p; b.setAttribute('aria-pressed', p); });
+  const custom = el.querySelector('.custom');
+  custom.setAttribute('aria-pressed', !preset);
+  custom.querySelector('input').value = value;
+  custom.style.background = preset ? '' : value;
+}
+
+/* ── Sliders y switches ── */
+document.querySelectorAll('input[type=range]').forEach((r) => r.addEventListener('input', () => set({ [r.dataset.key]: +r.value })));
+document.querySelectorAll('.sw-toggle').forEach((t) => t.addEventListener('click', () => {
+  const k = t.dataset.key;
+  if (k.startsWith('tabs.') && getKey(k) && Object.values(S.tabs).filter(Boolean).length === 1) return; // al menos una pestaña
+  setKey(k, !getKey(k));
+}));
+
+/* ── Portapapeles ── */
+$('clipExclude').addEventListener('change', (e) => set({ clipExclude: e.target.value }));
+document.querySelectorAll('input.text[data-key]').forEach((i) => i.addEventListener('change', () => set({ [i.dataset.key]: i.value.trim() })));
+let clearArmed = false, clearT;
+$('clipClear').addEventListener('click', () => {
+  if (!clearArmed) {
+    clearArmed = true; $('clipClear').classList.add('confirm'); $('clipClear').querySelector('span').textContent = 'Click de nuevo para borrar';
+    clearT = setTimeout(disarm, 3000); return;
+  }
+  isla.clipClear(); disarm(); setTimeout(paintClipCount, 300);
+});
+function disarm() { clearTimeout(clearT); clearArmed = false; $('clipClear').classList.remove('confirm'); $('clipClear').querySelector('span').textContent = 'Borrar historial'; }
+async function paintClipCount() { const n = await isla.clipCount(); $('clipCount').textContent = n ? `${n} ${n === 1 ? 'clip guardado' : 'clips guardados'}.` : 'Vacío.'; }
+paintClipCount();
+
+/* ── Atajo ── */
+let recording = false;
+$('hotkey').addEventListener('click', () => { recording = true; paint(); });
+window.addEventListener('keydown', (e) => {
+  if (!recording) return;
+  e.preventDefault();
+  if (e.key === 'Escape') { recording = false; paint(); return; }
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+  const mods = [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Super'].filter(Boolean);
+  if (!mods.length) return;
+  const key = e.code.startsWith('Key') ? e.code.slice(3) : e.code.startsWith('Digit') ? e.code.slice(5) : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  recording = false;
+  set({ hotkey: [...mods, key].join('+') });
+});
+
+/* ── Apps rápidas ── */
+function iconInto(el, appId) {
+  el.innerHTML = `<span class="ph">${ICON.app}</span>`;
+  iconOf(appId).then((u) => { if (u) { const im = new Image(); im.src = u; im.alt = ''; el.replaceChildren(im); } });
+}
+function renderApps() {
+  const box = $('apps');
+  const list = S.launchersInfo || [];
+  if (!list.length) { box.innerHTML = '<div class="empty">No hay apps. Agregá las que más abrís.</div>'; return; }
+  box.replaceChildren(...list.map((a, i) => {
+    const row = document.createElement('div'); row.className = 'app';
+    const ic = document.createElement('div'); iconInto(ic, a.appId);
+    const name = document.createElement('span'); name.textContent = a.name; name.title = a.name;
+    const mk = (html, label, fn, dis) => { const b = document.createElement('button'); b.className = 'icon-btn'; b.innerHTML = html; b.title = label; b.ariaLabel = label; b.disabled = dis; b.onclick = fn; return b; };
+    const move = (d) => { const l = [...S.launchers]; [l[i], l[i + d]] = [l[i + d], l[i]]; isla.set({ launchers: l }); };
+    row.append(ic, name,
+      mk(ICON.up, 'Subir', () => move(-1), i === 0),
+      mk(ICON.down, 'Bajar', () => move(1), i === list.length - 1),
+      mk(ICON.remove, `Quitar ${a.name}`, () => isla.set({ launchers: S.launchers.filter((x) => x !== a.appId) })));
+    return row;
+  }));
+}
+
+function renderResults() {
+  const q = $('q').value.trim().toLowerCase();
+  const have = new Set(S.launchers);
+  const hits = allApps.filter((a) => !have.has(a.appId) && (!q || a.name.toLowerCase().includes(q))).slice(0, 60);
+  const box = $('results');
+  if (!hits.length) { box.innerHTML = `<div class="none">${allApps.length ? 'No encontré esa app. Probá con "Elegir un .exe".' : 'Buscando tus apps…'}</div>`; return; }
+  box.replaceChildren(...hits.map((a) => {
+    const b = document.createElement('button');
+    const ic = document.createElement('span'); iconInto(ic, a.appId);
+    const n = document.createElement('span'); n.textContent = a.name;
+    b.append(ic, n);
+    b.onclick = () => { isla.set({ launchers: [...S.launchers, a.appId] }); $('q').value = ''; $('picker').classList.remove('on'); };
+    return b;
+  }));
+}
+$('addBtn').addEventListener('click', async () => {
+  const p = $('picker'); p.classList.toggle('on');
+  if (p.classList.contains('on')) { allApps = await isla.apps(); renderResults(); $('q').focus(); }
+});
+$('q').addEventListener('input', renderResults);
+$('exeBtn').addEventListener('click', async () => {
+  const p = await isla.pickExe();
+  if (p && !S.launchers.includes(p)) isla.set({ launchers: [...S.launchers, p] });
+});
+$('reset').addEventListener('click', () => isla.reset());
+
+/* ── Pintar todo desde el estado ── */
+let appsKey = '';
+function paint() {
+  const root = document.documentElement.style;
+  root.setProperty('--ink', S.islandColor);
+  root.setProperty('--accent', S.accentColor);
+  root.setProperty('--line-w', S.lineWidth + 'px');
+  root.setProperty('--line-h', S.lineThickness + 'px');
+  const light = (() => { const n = parseInt(S.islandColor.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > .55; })();
+  root.setProperty('--pfg', light ? '#141416' : '#f4f4f6');
+  $('pv').style.marginTop = Math.max(0, S.topOffset) + 'px';
+
+  document.querySelectorAll('.seg[data-key]').forEach((el) => paintSeg(el, String(getKey(el.dataset.key))));
+  if (document.activeElement !== $('clipExclude')) $('clipExclude').value = S.clipExclude || '';
+  document.querySelectorAll('input.text[data-key]').forEach((i) => { if (document.activeElement !== i) i.value = S[i.dataset.key] || ''; });
+  if (S.claudeHookError) { $('claudeHint').textContent = S.claudeHookError; $('claudeHint').style.color = '#ff8a80'; }
+  if (!pvLocked) pvState = S.idleMode === 'capsule' ? 'peek' : 'line';
+  paintSeg($('pvSeg'), pvState);
+  $('pv').dataset.s = pvState;
+
+  paintSwatches($('islandSw'), S.islandColor); $('islandHex').textContent = S.islandColor;
+  paintSwatches($('accentSw'), S.accentColor); $('accentHex').textContent = S.accentColor;
+  $('accentHint').textContent = S.accentMode === 'cover' ? 'Se usa cuando la canción no tiene carátula.' : 'Siempre este color.';
+  $('openHint').textContent = S.openOn === 'click'
+    ? 'Click en la línea la deja como cápsula. Click en la cápsula la abre. Doble click vuelve a línea.'
+    : 'Se abre entera al apoyar el mouse un instante.';
+
+  document.querySelectorAll('input[type=range]').forEach((r) => {
+    r.value = S[r.dataset.key];
+    r.style.setProperty('--fill', ((r.value - r.min) / (r.max - r.min)) * 100 + '%');
+    r.nextElementSibling.textContent = r.value + ' px';
+  });
+  document.querySelectorAll('.sw-toggle').forEach((t) => t.setAttribute('aria-checked', !!getKey(t.dataset.key)));
+  $('hotkey').textContent = recording ? 'Apretá las teclas…' : (S.hotkey || 'Sin atajo');
+  $('hotkey').classList.toggle('rec', recording);
+
+  const k = JSON.stringify(S.launchersInfo) + S.appsCount;
+  if (k !== appsKey) { appsKey = k; icons.clear(); renderApps(); if ($('picker').classList.contains('on')) renderResults(); }
+}
+
+isla.settings().then((s) => { S = s; paint(); requestAnimationFrame(paint); });
+isla.onSettings((s) => { S = s; paint(); });
+</script>
+</body>
+</html>

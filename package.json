@@ -1,0 +1,56 @@
+{
+  "name": "isla",
+  "version": "0.5.0",
+  "description": "Una isla flotante para Windows: música, portapapeles, avisos, temporizador y más, arriba de la pantalla.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "productName": "Isla",
+  "author": "Alejo Lobos",
+  "build": {
+    "appId": "com.alejolobos.isla",
+    "productName": "Isla",
+    "copyright": "MIT",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "hooks/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "src/*.ps1",
+      "hooks/**"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Isla",
+      "runAfterFinish": true,
+      "artifactName": "Isla-Setup-${version}.exe",
+      "language": "3082"
+    },
+    "portable": {
+      "artifactName": "Isla-${version}-portable.exe"
+    }
+  }
+}

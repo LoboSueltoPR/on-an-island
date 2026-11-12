@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Isla</title>
+<style>
+  @property --accent { syntax: '<color>'; inherits: true; initial-value: #7DD3FC; }
+  @property --p { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+  :root {
+    --ink: #000;
+    --fg: #f4f4f6;
+    --muted: rgba(244, 244, 246, .52);
+    --faint: rgba(244, 244, 246, .12);
+    --card: rgba(244, 244, 246, .07);
+    --line-w: 140px; --line-h: 4px; --top: 6px;
+    --d: .52s; --d-in: .3s;
+    --spring: linear(0, .034 2%, .13 4.3%, .27 6.8%, .53 11.5%, .74 16.5%, .88 21.5%, .97 27%, 1.02 33%, 1.033 39%, 1.028 46%, 1.012 57%, 1.002 70%, 1);
+    --out: cubic-bezier(.3, 0, .2, 1);
+  }
+  [data-tone=light] { --fg: #141416; --muted: rgba(20,20,22,.55); --faint: rgba(20,20,22,.12); --card: rgba(20,20,22,.06); }
+  [data-motion=snappy] { --d: .32s; --d-in: .18s; }
+  [data-motion=off] *, [data-motion=off] *::before { transition-duration: 0s !important; animation: none !important; }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; overflow: hidden; height: 100%; user-select: none; }
+  body { font: 13px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--fg); display: flex; justify-content: center; }
+  img { -webkit-user-drag: none; }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ── La forma ─────────────────────────────────────────── */
+  #island {
+    position: relative; margin-top: var(--top); background: var(--ink);
+    width: var(--line-w); height: var(--line-h); border-radius: calc(var(--line-h) / 2);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.09);
+    transition: width var(--d) var(--spring), height var(--d) var(--spring), border-radius var(--d) var(--spring),
+                box-shadow .5s var(--out), background-color .4s var(--out), --accent .9s var(--out);
+  }
+  #island[data-state=line].hot {
+    height: calc(var(--line-h) + 4px); border-radius: calc(var(--line-h) / 2 + 2px); cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 4px 18px -2px color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  #island[data-state=peek] { width: var(--pw, 300px); height: var(--ph, 38px); border-radius: calc(var(--ph, 38px) / 2); }
+  #island[data-state=peek].tall { border-radius: 26px; }
+  #island[data-state=open] {
+    width: 480px; height: 220px; border-radius: 36px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 18px 50px -12px color-mix(in oklab, var(--accent) 40%, transparent), 0 10px 30px rgba(0,0,0,.5);
+  }
+  /* zona caliente invisible alrededor de la línea */
+  #island::before { content: ''; position: absolute; inset: calc(-1 * var(--top)) -40px -14px; }
+  #island:not([data-state=line])::before { inset: -6px; }
+
+  .clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+  .line-fill {
+    position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p));
+    background: var(--accent); opacity: .85; border-radius: inherit; transition: opacity .2s;
+  }
+  #island:not([data-state=line]) .line-fill { opacity: 0; }
+
+  /* fondo con la carátula difuminada */
+  .ambient { position: absolute; inset: 0; opacity: 0; transition: opacity .7s var(--out); }
+  .ambient img { position: absolute; inset: -40%; width: 180%; height: 180%; object-fit: cover; filter: blur(38px) saturate(1.6); }
+  .ambient::after { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, color-mix(in oklab, var(--ink) 35%, transparent), color-mix(in oklab, var(--ink) 82%, transparent) 65%); }
+  .ambient-on #island[data-state=open]:not(.inactive) .ambient.has { opacity: .55; }
+
+  /* ── Capas ────────────────────────────────────────────── */
+  .layer {
+    position: absolute; top: 0; left: 50%;
+    opacity: 0; filter: blur(8px); transform: translateX(-50%) scale(.94); pointer-events: none;
+    transition: opacity .14s var(--out), filter .2s var(--out), transform .25s var(--out);
+  }
+  #island[data-state=peek] .peek, #island[data-state=open] .full {
+    opacity: 1; filter: blur(0); transform: translateX(-50%); pointer-events: auto;
+    transition: opacity var(--d-in) .1s var(--out), filter .4s .06s var(--out), transform var(--d) .04s var(--spring);
+  }
+
+  /* ── Cápsula: música, reloj, timer o aviso ─────────────── */
+  .peek { width: var(--pw, 300px); height: var(--ph, 38px); cursor: pointer; transition: width var(--d) var(--spring), height var(--d) var(--spring); }
+
+  /* ── Actividades y avisos (una sola pieza que se arma según el caso) ── */
+  .pv.act, .pv.toast { padding: 0 10px 0 12px; gap: 11px; }
+  #island[data-peek=act] .pv.act { opacity: 1; transform: none; pointer-events: auto; }
+  .pic { display: grid; place-items: center; color: var(--accent); flex: none; }
+  .pic svg.i { width: 18px; height: 18px; }
+  .pimg { flex: none; width: 24px; height: 24px; border-radius: 7px; object-fit: cover; }
+  .pimg.round { border-radius: 50%; }
+  .pimg.big { width: 40px; height: 40px; }
+  .pimg.shot { width: 76px; height: 50px; border-radius: 10px; box-shadow: 0 0 0 1px var(--faint); cursor: grab; }
+  .ptext { flex: 1; min-width: 0; }
+  .ptext .t1 { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ptext .t2 { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .pbtns { display: flex; gap: 6px; flex: none; }
+  .pbtn { height: 28px; padding: 0 12px; border-radius: 14px; font-size: 12px; font-weight: 600; background: var(--faint); }
+  .pbtn.round { width: 38px; height: 38px; padding: 0; border-radius: 50%; }
+  .pbtn.round svg.i { width: 17px; height: 17px; }
+  .pbtn.ok { background: #34c759; color: #fff; }
+  .pbtn.no { background: #ff453a; color: #fff; }
+  .pbtn.blue { background: #3b82f6; color: #fff; }
+  .pbtn.x { width: 26px; height: 26px; padding: 0; border-radius: 50%; color: var(--muted); }
+  .pbtn:hover { filter: brightness(1.15); }
+  .ringing { position: relative; }
+  .ringing::after { content: ''; position: absolute; inset: 0; border-radius: 50%; animation: ringing 1.6s infinite; }
+  @keyframes ringing { 0% { box-shadow: 0 0 0 0 rgba(52,199,89,.6); } 70%, 100% { box-shadow: 0 0 0 10px rgba(52,199,89,0); } }
+  .spin { animation: spin 1.1s linear infinite; }
+  .spin-slow { animation: spin 5s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .teams { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .teams img { width: 20px; height: 20px; object-fit: contain; }
+  .teams b { font: 650 15px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  .teams span { font-size: 12px; color: var(--muted); }
+  .livedot { width: 7px; height: 7px; border-radius: 50%; background: #ff453a; animation: breathe 1.2s infinite; flex: none; }
+  @keyframes breathe { 50% { opacity: .35; } }
+  .goal-bg { position: absolute; inset: 0; z-index: -1; border-radius: 999px; background: linear-gradient(90deg, var(--c1), var(--c2), var(--c1)); background-size: 200% 100%; animation: goal 1.2s linear infinite; opacity: .9; }
+  @keyframes goal { to { background-position: 200% 0; } }
+  .pv.goal .ptext .t1 { font: 800 17px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; letter-spacing: .02em; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+  .pv.goal .ptext .t2 { color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  .dolar { display: flex; align-items: center; gap: 9px; }
+  .dolar b { font: 650 15px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  .dolar .chg { display: flex; align-items: center; gap: 1px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .dolar .up { color: #6ee08f; } .dolar .down { color: #ff8a80; } .dolar .flat { color: var(--muted); }
+  .dolar svg.i { width: 13px; height: 13px; }
+  .pv.idle > * { animation: idle-in .45s var(--spring) both; }
+  @keyframes idle-in { from { opacity: 0; transform: translateY(8px); filter: blur(3px); } }
+
+  /* puntos de micrófono y cámara, a la derecha de la isla (como en el iPhone) */
+  .privacy { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); display: flex; gap: 4px; cursor: pointer; padding: 6px 4px; }
+  .privacy i { width: 7px; height: 7px; border-radius: 50%; animation: breathe 2.2s ease-in-out infinite; }
+  .privacy .mic { background: #ff9f0a; } .privacy .cam { background: #34c759; }
+  .privacy i[hidden] { display: none; }
+  /* Claude trabajando: chispa a la izquierda */
+  .cl-ind { position: absolute; right: calc(100% + 8px); top: 50%; width: 12px; height: 12px; margin-top: -6px; opacity: 0; transition: opacity .3s; }
+  .cl-ind.on { opacity: 1; }
+  .cl-ind svg { width: 12px; height: 12px; animation: spin 2.4s linear infinite; }
+  /* foco: el borde de la isla se va llenando */
+  @property --tp2 { syntax: '<number>'; inherits: true; initial-value: 0; }
+  .fborder { position: absolute; inset: 0; border-radius: inherit; padding: 2.5px; pointer-events: none; opacity: 0; transition: opacity .4s;
+    background: conic-gradient(from 0deg, var(--accent) calc(var(--tp2) * 1turn), color-mix(in oklab, var(--accent) 14%, transparent) 0);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  #island.focusing:not([data-state=line]) .fborder { opacity: 1; }
+  /* mascota: un gatito que camina colgado de la línea */
+  .pet { position: absolute; top: 100%; left: 0; right: 0; height: 18px; pointer-events: none; opacity: 0; transition: opacity .3s; }
+  .pet-on #island[data-state=line] .pet { opacity: 1; }
+  .pet .cat { position: absolute; top: 0; left: 0; animation: walk var(--walk, 14s) linear infinite alternate; }
+  .pet .cat { filter: drop-shadow(0 0 1px #000) drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+  .pet .cat svg { display: block; transform: scaleY(-1); animation: face calc(var(--walk, 14s) * 2) steps(1) infinite; }
+  .pet .legs-a { animation: legs .32s steps(1) infinite; }
+  .pet .legs-b { animation: legs .32s steps(1) infinite reverse; }
+  .pet.sit .cat, .pet.sit .cat svg { animation-play-state: paused; }
+  .pet.sit .legs-a, .pet.sit .legs-b { animation: none; }
+  .pet.sit .legs-b { opacity: 0; }
+  @keyframes walk { from { transform: translateX(0); } to { transform: translateX(calc(var(--line-w) - 22px)); } }
+  @keyframes face { 0% { transform: scale(1, -1); } 50% { transform: scale(-1, -1); } }
+  @keyframes legs { 0% { opacity: 1; } 50% { opacity: 0; } }
+  .pv { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 7px;
+        opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .35s var(--spring); pointer-events: none; }
+  #island[data-peek=music] .pv.music, #island[data-peek=idle] .pv.idle,
+  #island[data-peek=timer] .pv.timer, #island[data-peek=toast] .pv.toast { opacity: 1; transform: none; pointer-events: auto; }
+  .pv.music .art { width: 24px; height: 24px; border-radius: 7px; }
+  .pv.music .swap { flex: 1; font-weight: 600; font-size: 12.5px; }
+  .pv.idle, .pv.timer, .pv.toast { padding: 0 16px; }
+  .pv.idle { justify-content: center; }
+  .pv.timer svg.i, .pv.toast > svg.i, .pv.toast .tic { color: var(--accent); width: 17px; height: 17px; }
+  .pv.toast .tic img { width: 18px; height: 18px; object-fit: contain; display: block; }
+  .pt-digits { font: 600 15px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  .pt-label, .t-text { color: var(--muted); font-size: 12px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-text { color: var(--fg); font-weight: 600; flex: none; max-width: 170px; }
+  .mini-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--faint); overflow: hidden; min-width: 40px; }
+  .mini-bar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left; transform: scaleX(var(--v, 0)); transition: transform .3s var(--spring); }
+  .pt-bar { flex: none; width: 56px; }
+  .t-val { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 28px; text-align: right; }
+
+  /* relojes en reposo */
+  .clock-classic { display: flex; align-items: baseline; gap: 8px; }
+  .clock-classic b { font: 600 15px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  .clock-classic span { color: var(--muted); font-size: 12px; }
+  .clock-bold b { font: 750 21px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .clock-dots { display: flex; align-items: center; gap: 10px; }
+  .dm { display: flex; gap: 4px; }
+  .dm .ch { display: grid; grid-template-columns: repeat(3, 3px); grid-auto-rows: 3px; gap: 1.6px; }
+  .dm .ch.colon { grid-template-columns: 3px; }
+  .dm .ch i { border-radius: 50%; background: var(--faint); }
+  .dm .ch i.on { background: var(--fg); box-shadow: 0 0 4px color-mix(in oklab, var(--fg) 40%, transparent); }
+  .clock-dots span { color: var(--muted); font-size: 11.5px; }
+
+  /* ── Abierta ──────────────────────────────────────────── */
+  .full { width: 480px; height: 220px; padding: 14px 0 14px; display: flex; flex-direction: column; gap: 8px; }
+  .topbar { display: flex; align-items: center; gap: 2px; padding: 0 16px 0 14px; height: 26px; }
+  .tabs { display: flex; gap: 2px; position: relative; }
+  .tabs button { width: 32px; height: 26px; border-radius: 9px; color: var(--muted); }
+  .tabs button[aria-selected=true] { color: var(--fg); background: var(--faint); }
+  .tabs button[hidden] { display: none; }
+  .topbar .spacer { flex: 1; }
+  .topbar .tb { width: 28px; height: 26px; border-radius: 9px; color: var(--muted); }
+  .topbar .tb:hover, .tabs button:hover { color: var(--fg); }
+  #pin[aria-pressed=true] { color: var(--accent); }
+  #pin[aria-pressed=true] svg { fill: currentColor; }
+
+  .panes { position: relative; flex: 1; overflow: hidden; }
+  .strip { display: flex; height: 100%; transition: transform var(--d) var(--spring); }
+  .pane { flex: 0 0 100%; min-width: 0; padding: 0 22px; display: flex; flex-direction: column; opacity: .25; transition: opacity .3s; }
+  .pane.cur { opacity: 1; }
+  .pane[hidden] { display: none; }
+
+  /* media */
+  .head { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .head .art { width: 56px; height: 56px; border-radius: 15px; }
+  .meta { flex: 1; min-width: 0; }
+  .meta .title { font: 600 15.5px/1.25 "Segoe UI Variable Display", "Segoe UI", sans-serif; letter-spacing: -.01em; }
+  .meta .artist { color: var(--muted); margin-top: 1px; }
+
+  .art { position: relative; flex: none; overflow: hidden; background: var(--faint); }
+  .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.08); transition: opacity .45s var(--out), transform .7s var(--out), filter .3s; }
+  .art img.on { opacity: 1; transform: none; }
+  .art.stale img.on { filter: blur(3px) saturate(.4); opacity: .45; }
+  .art > svg { position: absolute; inset: 0; margin: auto; width: 46%; height: 46%; fill: var(--muted); }
+  .art.has > svg { display: none; }
+
+  .swap { position: relative; overflow: hidden; min-width: 0; }
+  .swap span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swap span.in  { animation: in .5s var(--spring) both; }
+  .swap span.out { position: absolute; inset: 0; animation: out .28s var(--out) both; }
+  .swap.back span.in  { animation-name: in-back; }
+  .swap.back span.out { animation-name: out-back; }
+  @keyframes in       { from { transform: translateY(70%);  opacity: 0; filter: blur(4px); } }
+  @keyframes out      { to   { transform: translateY(-70%); opacity: 0; filter: blur(4px); } }
+  @keyframes in-back  { from { transform: translateY(-70%); opacity: 0; filter: blur(4px); } }
+  @keyframes out-back { to   { transform: translateY(70%);  opacity: 0; filter: blur(4px); } }
+
+  .eq { display: flex; align-items: center; gap: 2px; height: 14px; flex: none; }
+  .eq i { width: 2.5px; height: 100%; border-radius: 2px; background: var(--accent); transform: scaleY(.25); transition: transform .3s; }
+  .playing .eq i { animation: eq 1s var(--out) infinite alternate; }
+  .eq i:nth-child(2) { animation-duration: .74s !important; animation-delay: -.3s !important; }
+  .eq i:nth-child(3) { animation-duration: .92s !important; animation-delay: -.6s !important; }
+  .eq i:nth-child(4) { animation-duration: .66s !important; animation-delay: -.15s !important; }
+  @keyframes eq { 0% { transform: scaleY(.25); } 40% { transform: scaleY(1); } 70% { transform: scaleY(.5); } 100% { transform: scaleY(.85); } }
+
+  button { all: unset; cursor: pointer; display: grid; place-items: center; color: var(--fg); transition: background .15s, color .15s, transform .25s var(--spring); }
+  button:active { transform: scale(.9); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .ctrls { display: flex; align-items: center; gap: 4px; flex: none; }
+  .ctrls button { width: 34px; height: 34px; border-radius: 50%; }
+  .ctrls button:hover { background: var(--faint); }
+  .ctrls button svg { width: 18px; height: 18px; fill: currentColor; }
+  button.play { width: 42px; height: 42px; border-radius: 50%; background: var(--fg); color: var(--ink); }
+  button.play:hover { transform: scale(1.05); background: var(--fg); }
+  button.play svg { width: 20px; height: 20px; fill: currentColor; }
+  button.play svg path { transition: d .28s var(--spring); }
+  .inactive .pane[data-tab=media] .ctrls { opacity: .3; pointer-events: none; }
+
+  .track { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-top: 10px; }
+  .track > span { width: 34px; }
+  .track > span:last-child { text-align: right; }
+  .seek { flex: 1; height: 20px; position: relative; cursor: pointer; display: flex; align-items: center; }
+  .seek .rail { width: 100%; height: 4px; border-radius: 2px; background: var(--faint); overflow: hidden; transition: height .2s var(--spring); }
+  .seek .fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(var(--p)); background: var(--accent); }
+  .seek .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--fg); transform: scale(0); transition: transform .25s var(--spring); }
+  .seek:hover .rail, .seek.drag .rail { height: 6px; }
+  .seek:hover .knob, .seek.drag .knob { transform: scale(1); }
+  .seek canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .seek[data-style=wave] canvas, .seek[data-style=bars] canvas { display: block; }
+  .seek[data-style=wave] .rail, .seek[data-style=bars] .rail, .seek[data-style=wave] .knob, .seek[data-style=bars] .knob { display: none; }
+  .inactive .track { visibility: hidden; }
+
+  .lyric { height: 0; margin-top: 0; font-size: 12.5px; font-weight: 600; color: var(--fg); opacity: 0; transition: height .3s var(--spring), opacity .3s, margin .3s; }
+  .has-lyrics .lyric { height: 18px; margin-top: 6px; opacity: .9; }
+
+  .mfoot { display: flex; align-items: center; gap: 2px; margin-top: auto; margin-inline: -6px; }
+  .chip { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px 0 6px; border-radius: 14px; color: var(--muted); font-size: 11.5px; }
+  .chip:hover { background: var(--faint); color: var(--fg); }
+  .chip img { width: 16px; height: 16px; object-fit: contain; }
+  .chip .multi { display: none; align-items: center; gap: 4px; }
+  .chip.many .multi { display: flex; }
+  .chip.many { cursor: pointer; }
+  .chip:not(.many) { pointer-events: none; }
+  .mfoot .spacer { flex: 1; }
+  .app { width: 30px; height: 30px; border-radius: 9px; }
+  .app img, .app svg.i { width: 20px; height: 20px; object-fit: contain; }
+  .app svg.i { color: var(--muted); }
+  .app:hover { background: var(--faint); transform: translateY(-1px) scale(1.08); }
+  .no-launchers .mfoot .app { display: none; }
+
+  /* portapapeles */
+  .cbar { display: flex; align-items: center; gap: 4px; height: 26px; }
+  .cbar button { height: 24px; padding: 0 10px; border-radius: 12px; color: var(--muted); font-size: 11.5px; }
+  .cbar button[aria-pressed=true] { background: var(--fg); color: var(--ink); }
+  .cbar button:not([aria-pressed=true]):hover { background: var(--faint); color: var(--fg); }
+  .cbar .count { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .cards { display: flex; gap: 8px; overflow-x: auto; margin: 8px -22px 0; padding: 0 22px; scroll-snap-type: x proximity; scroll-padding: 22px; flex: 1; }
+  .cards::-webkit-scrollbar { display: none; }
+  .card { position: relative; flex: 0 0 136px; height: 118px; border-radius: 16px; background: var(--card); padding: 9px 10px; cursor: pointer;
+          display: flex; flex-direction: column; gap: 6px; scroll-snap-align: start; overflow: hidden; box-shadow: inset 0 0 0 1px var(--faint);
+          transition: transform .3s var(--spring), box-shadow .2s; animation: card-in .45s var(--spring) both; }
+  @keyframes card-in { from { opacity: 0; transform: translateX(-12px) scale(.96); } }
+  .card:hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent); }
+  .card:active { transform: scale(.96); }
+  .chead { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10.5px; position: relative; z-index: 1; }
+  .chead img { width: 13px; height: 13px; object-fit: contain; }
+  .chead .when { margin-left: auto; white-space: nowrap; }
+  .chead .pinmark { color: var(--accent); display: none; }
+  .card.pinned .pinmark { display: block; }
+  .cbody { font-size: 12px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; word-break: break-word; position: relative; z-index: 1; }
+  .card.link .cbody b { display: block; font-weight: 600; margin-top: 2px; }
+  .card.link .cbody span { color: var(--muted); font-size: 11px; }
+  .card.link .lic { color: var(--accent); width: 18px; height: 18px; }
+  .card.image { padding: 0; }
+  .card.image .chead { position: absolute; left: 0; right: 0; top: 0; padding: 8px 10px 14px; color: #fff; background: linear-gradient(rgba(0,0,0,.55), transparent); }
+  .card.image > img { width: 100%; height: 100%; object-fit: cover; }
+  .cacts { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 3px; opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .25s var(--spring); z-index: 2; }
+  .card:hover .cacts { opacity: 1; transform: none; }
+  .cacts button { width: 26px; height: 26px; border-radius: 8px; background: color-mix(in oklab, var(--ink) 70%, transparent); color: var(--fg); backdrop-filter: blur(8px); }
+  .cacts button:hover { background: var(--ink); }
+  .cacts button svg { width: 14px; height: 14px; }
+  .card .done { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in oklab, var(--ink) 80%, transparent); color: var(--accent); opacity: 0; z-index: 3; pointer-events: none; }
+  .card.copied .done { animation: flash 1s var(--out); }
+  @keyframes flash { 15%, 70% { opacity: 1; } }
+  .card .done svg { width: 26px; height: 26px; stroke-width: 2.4; }
+  .empty { color: var(--muted); font-size: 12.5px; margin: auto; text-align: center; max-width: 260px; }
+
+  /* timer */
+  .tmode { display: flex; gap: 4px; height: 26px; align-items: center; }
+  .tmode button { height: 24px; padding: 0 10px; border-radius: 12px; color: var(--muted); font-size: 11.5px; }
+  .tmode button[aria-pressed=true] { background: var(--fg); color: var(--ink); }
+  .tmain { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  .tdigits { font: 600 46px/1 "Segoe UI Variable Display", "Segoe UI", sans-serif; letter-spacing: -.02em; font-variant-numeric: tabular-nums; min-width: 150px; cursor: ns-resize; }
+  .running .tdigits { cursor: default; }
+  .tside { flex: 1; display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+  .tside button { height: 24px; padding: 0 9px; border-radius: 12px; background: var(--faint); font-size: 11.5px; }
+  .tside button:hover { background: color-mix(in oklab, var(--fg) 22%, transparent); }
+  .tside .lap { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; width: 100%; }
+  .tctrls { display: flex; gap: 6px; align-items: center; }
+  .tctrls .sec { width: 34px; height: 34px; border-radius: 50%; background: var(--faint); }
+  .tctrls .sec svg { width: 16px; height: 16px; }
+  .tprog { margin-top: 14px; height: 4px; border-radius: 2px; background: var(--faint); overflow: hidden; }
+  .tprog i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(var(--tp, 0)); }
+
+  /* apps */
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 4px; margin-top: 2px; }
+  .gapp { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 2px 6px; border-radius: 14px; }
+  .gapp:hover { background: var(--faint); }
+  .gapp img, .gapp svg.i { width: 32px; height: 32px; object-fit: contain; }
+  .gapp svg.i { color: var(--muted); stroke-width: 1.4; }
+  .gapp span { font-size: 10.5px; color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="island" data-state="line" data-peek="idle" class="inactive">
+  <div class="clip">
+    <div class="ambient" id="ambient"><img id="ambImg" alt=""></div>
+    <div class="line-fill"></div>
+  </div>
+  <div class="fborder"></div>
+  <div class="privacy" id="privacy" title="Micrófono o cámara en uso"><i class="mic" id="micDot" hidden></i><i class="cam" id="camDot" hidden></i></div>
+  <div class="cl-ind" id="clInd" title="Claude Code está trabajando"><svg viewBox="0 0 24 24"><g fill="#e8875f"><rect x="11" y="2" width="2.2" height="20" rx="1.1"/><rect x="11" y="2" width="2.2" height="20" rx="1.1" transform="rotate(45 12 12)"/><rect x="11" y="2" width="2.2" height="20" rx="1.1" transform="rotate(90 12 12)"/><rect x="11" y="2" width="2.2" height="20" rx="1.1" transform="rotate(135 12 12)"/></g></svg></div>
+  <div class="pet" id="pet"><div class="cat"><svg width="22" height="16" viewBox="0 0 11 8" shape-rendering="crispEdges">
+    <g fill="#f4f4f6"><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="4" height="3"/><rect x="5" y="2" width="5" height="3"/><rect x="10" y="1" width="1" height="2"/></g>
+    <g fill="#000"><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/></g>
+    <g class="legs-a" fill="#f4f4f6"><rect x="5" y="5" width="1" height="2"/><rect x="9" y="5" width="1" height="2"/></g>
+    <g class="legs-b" fill="#f4f4f6"><rect x="6" y="5" width="1" height="2"/><rect x="8" y="5" width="1" height="2"/></g></svg></div></div>
+
+  <div class="layer peek" id="peek">
+    <div class="pv music">
+      <div class="art" id="pArt"><svg viewBox="0 0 24 24"><path d="M10 3v10.6A4 4 0 1 0 12 17V7h6V3z"/></svg><img alt=""><img alt=""></div>
+      <div class="swap" id="pTitle"><span>Nada sonando</span></div>
+      <div class="eq"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="pv idle" id="clock"></div>
+    <div class="pv timer">
+      <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg>
+      <span class="pt-digits" id="ptDigits">0:00</span>
+      <span class="pt-label" id="ptLabel">Temporizador</span>
+      <div class="mini-bar pt-bar" id="ptBar"><i></i></div>
+    </div>
+    <div class="pv toast" id="toastPv"></div>
+    <div class="pv act" id="actPv"></div>
+  </div>
+
+  <div class="layer full">
+    <div class="topbar">
+      <div class="tabs" id="tabs" role="tablist">
+        <button data-tab="media" title="Música" role="tab"><svg class="i" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></button>
+        <button data-tab="clipboard" title="Portapapeles" role="tab"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
+        <button data-tab="timer" title="Temporizador" role="tab"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg></button>
+        <button data-tab="apps" title="Apps" role="tab"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></button>
+      </div>
+      <span class="spacer"></span>
+      <button class="tb" id="pin" title="Dejarla abierta" aria-pressed="false"><svg class="i" viewBox="0 0 24 24"><path d="M12 17v5M9 10.8V4h6v6.8l3 3.2v2H6v-2z"/></svg></button>
+      <button class="tb" id="gear" title="Ajustes"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+    </div>
+
+    <div class="panes"><div class="strip" id="strip">
+
+      <section class="pane" data-tab="media" id="mediaPane">
+        <div class="head">
+          <div class="art" id="fArt"><svg viewBox="0 0 24 24"><path d="M10 3v10.6A4 4 0 1 0 12 17V7h6V3z"/></svg><img alt=""><img alt=""></div>
+          <div class="meta">
+            <div class="swap title" id="fTitle"><span>Nada sonando</span></div>
+            <div class="swap artist" id="fArtist"><span>Poné algo en cualquier app</span></div>
+          </div>
+          <div class="ctrls">
+            <button data-cmd="prev" title="Anterior"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+            <button data-cmd="toggle" class="play" title="Reproducir o pausar"><svg viewBox="0 0 24 24"><path id="playPath"/></svg></button>
+            <button data-cmd="next" title="Siguiente"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
+          </div>
+        </div>
+        <div class="track">
+          <span id="pos">0:00</span>
+          <div class="seek" id="seek" data-style="line"><div class="rail"><div class="fill"></div></div><div class="knob"></div><canvas id="seekCanvas"></canvas></div>
+          <span id="rem">0:00</span>
+        </div>
+        <div class="swap lyric" id="lyric"><span></span></div>
+        <div class="mfoot" id="mfoot">
+          <button class="chip" id="player" title="Cambiar de reproductor">
+            <span id="playerIcon"></span><span id="playerName"></span>
+            <span class="multi"><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><span id="playerCount"></span></span>
+          </button>
+          <span class="spacer"></span>
+        </div>
+      </section>
+
+      <section class="pane" data-tab="clipboard">
+        <div class="cbar" id="cfilters">
+          <button data-f="all" aria-pressed="true">Todo</button>
+          <button data-f="text">Texto</button>
+          <button data-f="link">Enlaces</button>
+          <button data-f="image">Imágenes</button>
+          <button data-f="pinned">Fijados</button>
+          <span class="count" id="ccount"></span>
+        </div>
+        <div class="cards" id="cards"></div>
+      </section>
+
+      <section class="pane" data-tab="timer" id="timerPane">
+        <div class="tmode" id="tmode">
+          <button data-m="timer" aria-pressed="true">Temporizador</button>
+          <button data-m="sw">Cronómetro</button>
+        </div>
+        <div class="tmain">
+          <div class="tdigits" id="tDigits" title="Girá la rueda para cambiar los minutos">5:00</div>
+          <div class="tside" id="tSide"></div>
+          <div class="tctrls">
+            <button class="sec" id="tSec" title="Reiniciar"></button>
+            <button class="play" id="tPlay" title="Empezar"><svg viewBox="0 0 24 24"><path id="tPlayPath"/></svg></button>
+          </div>
+        </div>
+        <div class="tprog" id="tProg"><i></i></div>
+      </section>
+
+      <section class="pane" data-tab="apps">
+        <div class="grid" id="grid"></div>
+      </section>
+
+    </div></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const island = $('island');
+const root = document.documentElement;
+
+/* ── Íconos ───────────────────────────────────────────── */
+const svg = (d, extra = '') => `<svg class="i" viewBox="0 0 24 24" ${extra}>${d}</svg>`;
+const IC = {
+  app: svg('<rect x="4" y="4" width="16" height="16" rx="4.5"/><path d="M4 9h16"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  pin: svg('<path d="M12 17v5M9 10.8V4h6v6.8l3 3.2v2H6v-2z"/>'),
+  trash: svg('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+  check: svg('<path d="M20 6 9 17l-5-5"/>'),
+  link: svg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>', 'class="i lic"'),
+  clip: svg('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
+  bell: svg('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
+  reset: svg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>'),
+  flag: svg('<path d="M4 22V4M4 4h13l-2 4 2 4H4"/>'),
+  vol: (v, mute) => svg('<path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"/>' + (mute || v === 0
+    ? '<path d="m22 9-6 6M16 9l6 6"/>'
+    : (v > 0 ? '<path d="M15.5 8.5a5 5 0 0 1 0 7"/>' : '') + (v > 50 ? '<path d="M19 5a10 10 0 0 1 0 14"/>' : ''))),
+  battery: (pct, ac) => svg(`<rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 11v2"/><rect x="4.5" y="9.5" width="${Math.max(1, 13 * pct / 100).toFixed(1)}" height="5" rx="1" fill="currentColor" stroke="none"/>`
+    + (ac ? '<path d="M12 6.5 9 12.5h4l-2 5" stroke="var(--ink)" stroke-width="3.5"/><path d="M12 6.5 9 12.5h4l-2 5"/>' : '')),
+};
+const PATH = {
+  play:  'M7 4.5L13 8.2L13 15.8L7 19.5Z M13 8.2L19.5 12L19.5 12L13 15.8Z',
+  pause: 'M6.5 4.5L10.5 4.5L10.5 19.5L6.5 19.5Z M13.5 4.5L17.5 4.5L17.5 19.5L13.5 19.5Z',
+};
+const setPlayIcon = (el, playing) => { el.style.d = `path("${playing ? PATH.pause : PATH.play}")`; };
+
+/* ── Estado ───────────────────────────────────────────── */
+let cfg = { idleMode: 'line', openOn: 'click', accentMode: 'cover', accentColor: '#7DD3FC', peekOnTrackChange: true,
+  tabs: { media: true, clipboard: true, timer: true, apps: true }, clockStyle: 'classic', clock24h: true, seekStyle: 'line' };
+let st = { active: false, key: '' }, sys = null, lyrics = null, clipsList = [];
+let shownKey = null, thumbKey = null, dir = 1, dragging = false;
+let leaveT, peekT, dwellT, toastT = null, hovered = false, pinned = false, tab = 'media';
+
+const rest = () => (cfg.idleMode === 'capsule' ? 'peek' : 'line');
+function setState(s) {
+  island.dataset.state = s;
+  if (s !== 'line') island.classList.remove('hot');
+  if (s !== 'open' || toastT) return;
+}
+const peekView = () => (timer.active() ? 'timer' : st.active ? 'music' : 'idle');
+
+/* ── Mouse ────────────────────────────────────────────── */
+island.addEventListener('mouseenter', () => {
+  hovered = true; clearTimeout(leaveT); clearTimeout(peekT); isla.hover(true);
+  if (island.dataset.state === 'line') island.classList.add('hot');
+  if (cfg.openOn === 'hover') {
+    clearTimeout(dwellT);
+    // Con un aviso en pantalla (captura, gol, descarga…) no se abre: así podés arrastrarlo o tocarlo.
+    dwellT = setTimeout(() => { if (hovered && !toastSpec) setState('open'); }, 140);
+  }
+});
+function scheduleLeave() {
+  clearTimeout(leaveT); clearTimeout(dwellT);
+  leaveT = setTimeout(() => {
+    if (dragging || hovered || pinned) return;
+    island.classList.remove('hot'); setState(toastSpec ? 'peek' : rest()); isla.hover(false); // con un aviso, queda la cápsula
+  }, 450);
+}
+island.addEventListener('mouseleave', () => { hovered = false; island.classList.remove('hot'); scheduleLeave(); });
+// Click en la línea: pasa a cápsula y queda guardado así. Click en la cápsula: se abre.
+// Doble click (cápsula o abierta): vuelve a ser línea, también guardado.
+const saveIdle = (mode) => { if (cfg.idleMode !== mode) { cfg.idleMode = mode; isla.set({ idleMode: mode }); } };
+let clickT;
+island.addEventListener('click', (e) => {
+  if (e.target.closest('button, .seek, .card, .tdigits')) return;
+  const s = island.dataset.state;
+  if (toastT && timer.ringing) timer.silence();
+  if (toastT && toastSpec?.onClick) { toastSpec.onClick(); clearTimeout(toastT); endToast(); return; }
+  if (s === 'line') { saveIdle('capsule'); setState('peek'); }
+  else if (s === 'peek' && e.detail === 1) {
+    clearTimeout(clickT);
+    clickT = setTimeout(() => setState('open'), 230); // espera por si es doble click
+  }
+});
+island.addEventListener('dblclick', (e) => {
+  if (e.target.closest('button, .seek, .card, .cards, .tdigits')) return;
+  clearTimeout(clickT);
+  if (island.dataset.state === 'line') return;
+  pinned = false; paintPin();
+  saveIdle('line');
+  setState('line');
+});
+$('gear').addEventListener('click', (e) => { e.stopPropagation(); isla.openSettings(); });
+const paintPin = () => $('pin').setAttribute('aria-pressed', pinned);
+$('pin').addEventListener('click', (e) => { e.stopPropagation(); pinned = !pinned; paintPin(); });
+
+// Rueda: horizontal cambia de pestaña; vertical cambia el volumen (o recorre las tarjetas del portapapeles).
+let wheelAcc = 0, wheelT = 0;
+island.addEventListener('wheel', (e) => {
+  const open = island.dataset.state === 'open';
+  if (open && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+    wheelAcc += e.deltaX;
+    if (Math.abs(wheelAcc) > 60 && Date.now() - wheelT > 350) { stepTab(Math.sign(wheelAcc)); wheelAcc = 0; wheelT = Date.now(); }
+    return;
+  }
+  if (open && tab === 'clipboard') { $('cards').scrollLeft += e.deltaY; e.preventDefault(); return; }
+  if (open && tab === 'timer') return;
+  if (!cfg.scrollVolume || !sys) return;
+  e.preventDefault();
+  const v = Math.max(0, Math.min(100, Math.round((sys.mute ? 0 : sys.vol) - Math.sign(e.deltaY) * 2)));
+  isla.sysCmd(`vol ${(v / 100).toFixed(2)}`);
+  sys = { ...sys, vol: v, mute: false };
+  showVolume();
+}, { passive: false });
+
+/* ── Pestañas ─────────────────────────────────────────── */
+const visibleTabs = () => ['media', 'clipboard', 'timer', 'apps'].filter((t) => cfg.tabs?.[t]);
+function setTab(t) {
+  const list = visibleTabs();
+  if (!list.includes(t)) t = list[0];
+  tab = t;
+  document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === t));
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('cur', p.dataset.tab === t));
+  $('strip').style.transform = `translateX(${-100 * list.indexOf(t)}%)`;
+}
+function stepTab(d) {
+  const list = visibleTabs();
+  setTab(list[(list.indexOf(tab) + d + list.length) % list.length]);
+}
+document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setTab(b.dataset.tab); }));
+function applyTabs() {
+  for (const t of ['media', 'clipboard', 'timer', 'apps']) {
+    const on = !!cfg.tabs?.[t];
+    document.querySelector(`#tabs [data-tab=${t}]`).hidden = !on;
+    document.querySelector(`.pane[data-tab=${t}]`).hidden = !on;
+  }
+  $('tabs').style.display = visibleTabs().length > 1 ? '' : 'none';
+  setTab(tab);
+}
+
+/* ── La cápsula se arma según lo que haya que mostrar ──── */
+// spec: { w, h, icon, img, imgCls, title, sub, value, bar, buttons:[{label, html, cls, fn}], cls, build(el), drag(e), onClick }
+// Arrastrar una imagen de la isla a otra app (como archivo PNG). El CSS global bloquea el arrastre de <img>,
+// así que se habilita solo en estas. El arrastre real lo hace Windows (startDrag en el proceso principal).
+isla.onDragEnd(() => { dragging = false; if (!hovered) scheduleLeave(); });
+function makeDraggable(el, onDrag) {
+  el.draggable = true;
+  el.style.webkitUserDrag = 'element';
+  el.style.cursor = 'grab';
+  el.addEventListener('dragstart', (e) => {
+    e.preventDefault();
+    dragging = true;
+    onDrag();
+  });
+  el.addEventListener('dragend', () => { dragging = false; });
+  el.addEventListener('mouseup', () => { dragging = false; });
+  // Windows no avisa cuándo terminó el arrastre: lo damos por terminado al mover el mouse sin botón apretado.
+  if (!window.__dragWatch) { window.__dragWatch = true; document.addEventListener('mousemove', (e) => { if (dragging && !e.buttons) dragging = false; }); }
+}
+function renderPv(el, s) {
+  el.className = 'pv ' + (el.id === 'toastPv' ? 'toast' : 'act') + (s.cls ? ' ' + s.cls : '');
+  el.replaceChildren();
+  if (s.bg) { const g = document.createElement('div'); g.className = 'goal-bg'; g.style.setProperty('--c1', s.bg[0]); g.style.setProperty('--c2', s.bg[1]); el.append(g); }
+  if (s.build) { s.build(el); return; }
+  if (s.img) {
+    const im = new Image(); im.alt = ''; im.src = s.img; im.className = 'pimg ' + (s.imgCls || '');
+    if (s.drag) makeDraggable(im, s.drag);
+    el.append(im);
+  } else if (s.icon) { const ic = document.createElement('span'); ic.className = 'pic'; ic.innerHTML = s.icon; el.append(ic); }
+  const tx = document.createElement('div'); tx.className = 'ptext';
+  const t1 = document.createElement('div'); t1.className = 't1'; t1.textContent = s.title || ''; tx.append(t1);
+  if (s.sub !== undefined) { const t2 = document.createElement('div'); t2.className = 't2'; t2.textContent = s.sub; if (s.live) t2.dataset.live = s.live; tx.append(t2); }
+  el.append(tx);
+  if (s.bar != null) { const b = document.createElement('div'); b.className = 'mini-bar'; b.style.setProperty('--v', s.bar); b.innerHTML = '<i></i>'; b.style.flex = '0 0 90px'; el.append(b); }
+  if (s.value) { const v = document.createElement('span'); v.className = 't-val'; v.textContent = s.value; el.append(v); }
+  if (s.buttons?.length) {
+    const bx = document.createElement('div'); bx.className = 'pbtns';
+    for (const b of s.buttons) {
+      const btn = document.createElement('button'); btn.className = 'pbtn ' + (b.cls || '');
+      if (b.html) btn.innerHTML = b.html; else btn.textContent = b.label;
+      if (b.label) btn.title = b.label;
+      btn.addEventListener('click', (e) => { e.stopPropagation(); b.fn(); });
+      bx.append(btn);
+    }
+    el.append(bx);
+  }
+}
+function setPeekSize(w, h) {
+  if (w) { island.style.setProperty('--pw', w + 'px'); island.style.setProperty('--ph', h + 'px'); }
+  else { island.style.removeProperty('--pw'); island.style.removeProperty('--ph'); }
+  island.classList.toggle('tall', !!h && h > 52);
+}
+
+/* ── Avisos que aparecen y se van ─────────────────────── */
+let toastSpec = null;
+function toast(s) {
+  if (island.dataset.state === 'open' && !s.force) return;
+  toastSpec = s;
+  renderPv($('toastPv'), s);
+  setPeekSize(s.w || 300, s.h || 38);
+  island.dataset.peek = 'toast';
+  if (island.dataset.state !== 'peek') setState('peek');
+  clearTimeout(toastT);
+  // Si tenés el mouse encima o estás arrastrando, el aviso espera.
+  const tick = () => { if ((hovered || dragging) && toastSpec === s) toastT = setTimeout(tick, 700); else endToast(); };
+  toastT = setTimeout(tick, s.ms || 1700);
+}
+const goalQ = []; // si caen varios goles juntos, se muestran de a uno
+function endToast() {
+  toastT = null; toastSpec = null;
+  if (goalQ.length) return toast(goalQ.shift());
+  refreshPeek(true);
+}
+function showVolume() {
+  if (!cfg.popVolume) return;
+  const v = sys.mute ? 0 : sys.vol;
+  toast({ icon: IC.vol(v, sys.mute), title: sys.mute ? 'Silenciado' : 'Volumen', value: sys.mute ? '' : String(v), bar: v / 100, ms: 1400 });
+}
+
+/* ── Actividades que se quedan mientras duran ─────────── */
+let call = null, meetings = [], dismissedMeet = new Set(), match = null, downloads = [], claudeS = [], dolarData = null, forcedPeek = false, actKey = '';
+const esc2 = (n) => String(n).padStart(2, '0');
+const until = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${esc2(s % 60)}`; };
+const fmtBytes = (b) => b > 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB';
+const SPARK = '<svg class="i spin-slow" viewBox="0 0 24 24" style="width:20px;height:20px"><g fill="#e8875f" stroke="none"><rect x="11" y="2" width="2.2" height="20" rx="1.1"/><rect x="11" y="2" width="2.2" height="20" rx="1.1" transform="rotate(45 12 12)"/><rect x="11" y="2" width="2.2" height="20" rx="1.1" transform="rotate(90 12 12)"/><rect x="11" y="2" width="2.2" height="20" rx="1.1" transform="rotate(135 12 12)"/></g></svg>';
+const PHONE = '<svg class="i" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>';
+IC.cal = svg('<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/>');
+IC.file = svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>');
+IC.dl = svg('<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', 'class="i spin"');
+IC.x = svg('<path d="M18 6 6 18M6 6l12 12"/>');
+IC.arrowUp = svg('<path d="m6 15 6-6 6 6"/>');
+IC.arrowDown = svg('<path d="m6 9 6 6 6-6"/>');
+
+function nextMeeting() {
+  const now = Date.now();
+  return meetings.find((m) => m.start - now <= 5 * 60e3 && now < m.start + 3 * 60e3 && !dismissedMeet.has(m.start + m.title));
+}
+// La actividad más importante ahora, o null. forced = se muestra sola aunque la isla esté como línea.
+function currentActivity() {
+  if (call && cfg.calls) return { key: 'call' + call.id, forced: true, spec: {
+    w: 384, h: 64, img: call.logo, imgCls: 'round big', title: call.title || call.app, sub: `${call.app} · Llamada entrante`,
+    buttons: [
+      { html: IC.x, label: 'Ignorar', cls: 'round no', fn: () => { call = null; refreshPeek(true); } },
+      { html: PHONE, label: `Abrir ${call.app}`, cls: 'round ok ringing', fn: () => { isla.launch(call.appId); call = null; refreshPeek(true); } },
+    ] } };
+  const perm = cfg.claudeCode && claudeS.find((s) => s.state === 'permission');
+  if (perm) return { key: 'cl' + perm.id + perm.t, forced: true, spec: {
+    w: 340, h: 50, icon: SPARK, title: `Claude Code · ${perm.project}`, sub: perm.detail,
+    buttons: [{ html: IC.x, label: 'Ocultar', cls: 'x', fn: () => { perm.state = 'waiting'; refreshPeek(true); } }] } };
+  const m = cfg.meetings && nextMeeting();
+  if (m) return { key: 'meet' + m.start + m.title, forced: true, spec: {
+    w: 360, h: 50, icon: IC.cal, title: m.title, sub: '', live: 'meet:' + m.start,
+    buttons: [
+      ...(m.link ? [{ label: 'Unirse', cls: 'blue', fn: () => { isla.openUrl(m.link); dismissedMeet.add(m.start + m.title); refreshPeek(true); } }] : []),
+      { html: IC.x, label: 'Ocultar', cls: 'x', fn: () => { dismissedMeet.add(m.start + m.title); refreshPeek(true); } },
+    ] } };
+  if (cfg.football && match && match.state === 'in') return { key: 'match' + match.home.score + match.away.score + match.clock, spec: { w: 300, h: 40, build: buildMatch } };
+  if (cfg.downloads && downloads.length) {
+    const d = downloads[0];
+    return { key: 'dl' + d.name + downloads.length, spec: { w: 320, h: 44, icon: IC.dl, title: d.name + (downloads.length > 1 ? `  +${downloads.length - 1}` : ''), sub: '', live: 'dl' } };
+  }
+  return null;
+}
+function buildMatch(el) {
+  const t = document.createElement('div'); t.className = 'teams';
+  const side = (s) => { const f = document.createDocumentFragment(); if (s.logo) f.append(iconImg(s.logo)); const a = document.createElement('span'); a.textContent = s.abbr; f.append(a); return f; };
+  const score = document.createElement('b'); score.textContent = `${match.home.score} – ${match.away.score}`;
+  t.append(side(match.home), score, side(match.away));
+  const live = document.createElement('span'); live.className = 'livedot';
+  const clk = document.createElement('span'); clk.className = 't-val'; clk.textContent = match.state === 'in' ? match.clock : match.detail;
+  el.append(t, live, clk);
+}
+
+// Decide qué muestra la cápsula. force=true para re-evaluar si se vuelve a línea.
+function refreshPeek(collapse) {
+  if (toastT) return;
+  const a = currentActivity();
+  if (a) {
+    if (a.key !== actKey) { actKey = a.key; renderPv($('actPv'), a.spec); }
+    setPeekSize(a.spec.w, a.spec.h);
+    island.dataset.peek = 'act';
+  } else {
+    actKey = '';
+    setPeekSize();
+    island.dataset.peek = peekView();
+  }
+  if (a?.forced && island.dataset.state === 'line') { forcedPeek = true; setState('peek'); }
+  else if ((collapse || (!a?.forced && forcedPeek)) && !hovered && !pinned && island.dataset.state === 'peek') {
+    forcedPeek = false;
+    setState(rest());
+  }
+}
+
+/* ── Sistema: volumen, batería, micrófono y cámara ────── */
+isla.onSys((s) => {
+  const prev = sys; sys = s;
+  paintPrivacy();
+  if (!prev) return;
+  if (s.vol !== prev.vol || s.mute !== prev.mute) showVolume();
+  if (cfg.popBattery && s.bat) {
+    if (s.ac !== prev.ac) toast({ icon: IC.battery(s.pct, s.ac), title: s.ac ? 'Cargando' : 'Usando batería', value: s.pct + '%', bar: s.pct / 100 });
+    else if (!s.ac && ((prev.pct > 20 && s.pct <= 20) || (prev.pct > 10 && s.pct <= 10)))
+      toast({ icon: IC.battery(s.pct, false), title: 'Batería baja', value: s.pct + '%', bar: s.pct / 100, ms: 4000 });
+  }
+});
+function paintPrivacy() {
+  const on = cfg.privacyDots && sys;
+  $('micDot').hidden = !(on && sys.mic?.length);
+  $('camDot').hidden = !(on && sys.cam?.length);
+}
+$('privacy').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!sys) return;
+  const parts = [sys.mic?.length && `Micrófono: ${sys.mic.join(', ')}`, sys.cam?.length && `Cámara: ${sys.cam.join(', ')}`].filter(Boolean);
+  if (parts.length) toast({ icon: IC.vol(60, false), title: 'En uso', sub: parts.join(' · '), w: 340, h: 46, ms: 3500, force: true });
+});
+isla.sys().then((s) => { if (s && s.vol !== undefined) { sys = s; paintPrivacy(); } });
+
+/* ── Copiado y capturas ───────────────────────────────── */
+isla.onToast(async (t) => {
+  if (t.kind === 'image') {
+    toast({ img: t.thumb, imgCls: 'shot', title: t.shot ? 'Captura guardada' : 'Imagen copiada', sub: 'Arrastrala a cualquier app',
+      drag: () => isla.dragClip(t.id), w: 330, h: 68, ms: 6000 });
+    return;
+  }
+  if (t.kind !== 'clip') return;
+  const url = t.appPath ? await isla.fileIcon(t.appPath) : null;
+  toast(url ? { img: url, title: t.appName ? `Copiado de ${t.appName}` : 'Copiado' } : { icon: IC.clip, title: t.appName ? `Copiado de ${t.appName}` : 'Copiado' });
+});
+
+/* ── Llamadas y mensajes ──────────────────────────────── */
+isla.onNotif((n) => {
+  if (n.call) { call = n; setTimeout(() => { if (call?.id === n.id) { call = null; refreshPeek(true); } }, 45000); refreshPeek(); return; }
+  toast({ img: n.logo, imgCls: 'round big', title: n.title || n.app, sub: n.body.split('\n')[0] || n.app, w: 360, h: 58, ms: 5000,
+    onClick: () => isla.launch(n.appId) });
+});
+isla.onNotifPresent((ids) => { if (call && !ids.includes(call.id)) { call = null; refreshPeek(true); } });
+
+/* ── Reuniones, descargas, fútbol, dólar, Claude ──────── */
+isla.onMeetings((l) => { meetings = l || []; refreshPeek(); });
+isla.onDownloads((l) => {
+  const before = downloads.length;
+  downloads = l || [];
+  if (cfg.downloads && downloads.length > before && island.dataset.state === 'line') toast({ icon: IC.dl, title: downloads[downloads.length - 1].name, sub: 'Descargando', w: 320, h: 44, ms: 2500 });
+  refreshPeek();
+});
+isla.onDownloadDone((d) => {
+  if (!cfg.downloads) return;
+  toast({ icon: IC.file, title: d.name, sub: 'Descargado · click para abrir', w: 330, h: 44, ms: 6000, onClick: () => isla.openDownload(d.path) });
+});
+isla.onMatch((m) => { match = m; refreshPeek(); });
+isla.onGoal((m) => {
+  if (m.league === undefined && !cfg.football) return; // gol de tu equipo (partido en vivo)
+  const me = m[m.mine];
+  const score = `${m.home.abbr} ${m.home.score} – ${m.away.score} ${m.away.abbr}`;
+  if (m.league === undefined) {
+    toast({ cls: 'goal', bg: [me.color, me.alt], title: '¡GOL!', sub: score, img: me.logo, w: 300, h: 46, ms: 7000, force: true });
+    return;
+  }
+  // Gol de una liga o equipo que seguís: quién, minuto y torneo.
+  const who = m.player ? `${m.player}${m.pen ? ' (p)' : m.own ? ' (e/c)' : ''} ${m.minute}` : me.name;
+  const spec = { goal: true, cls: m.followed ? 'goal' : '', bg: m.followed ? [me.color, me.alt] : undefined, img: me.logo,
+    title: `¡Gol! ${who}`, sub: `${score}${m.league ? ' · ' + m.league : ''}`, w: 360, h: 46, ms: 6000, force: true };
+  if (toastSpec?.goal) goalQ.push(spec); else toast(spec);
+});
+isla.onDolar((d) => { dolarData = d; idleShown = ''; });
+isla.onClaude((list) => {
+  claudeS = list || [];
+  $('clInd').classList.toggle('on', !!cfg.claudeCode && claudeS.some((s) => s.state === 'working'));
+  refreshPeek();
+});
+isla.onClaudeDone((c) => {
+  if (!cfg.claudeCode) return;
+  toast({ icon: SPARK, title: 'Claude terminó', sub: c.project, w: 280, h: 44, ms: 3500 });
+});
+isla.cache().then((c) => {
+  meetings = c.meetings || []; downloads = c.downloads || []; match = c.match || null; dolarData = c.dolar || null; claudeS = c.claude || [];
+  refreshPeek();
+});
+
+// Valores que cambian solos (cuenta regresiva de la reunión, velocidad de descarga).
+function paintLive() {
+  document.querySelectorAll('[data-live]').forEach((n) => {
+    const k = n.dataset.live;
+    if (k.startsWith('meet:')) { const d = +k.slice(5) - Date.now(); n.textContent = d > 0 ? `Empieza en ${until(d)}` : `Empezó hace ${until(-d)}`; }
+    else if (k === 'dl' && downloads[0]) n.textContent = `${fmtBytes(downloads[0].size)} · ${fmtBytes(downloads[0].speed)}/s`;
+  });
+}
+
+/* ── Comandos de media (optimistas) ───────────────────── */
+document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const cmd = b.dataset.cmd;
+  isla.cmd(cmd);
+  if (cmd === 'toggle') {
+    st.position = currentPos(); st.updated = Date.now(); st.playing = !st.playing; paintPlaying();
+  } else {
+    dir = cmd === 'prev' ? -1 : 1;
+    document.querySelectorAll('.art').forEach((a) => a.classList.add('stale'));
+  }
+}));
+$('player').addEventListener('click', (e) => { e.stopPropagation(); if ((st.sessions || []).length > 1) isla.cmd('cycle'); });
+
+/* ── Apps (lanzadores con ícono real) ─────────────────── */
+const iconImg = (url) => { const im = new Image(); im.alt = ''; im.src = url; return im; };
+function renderLaunchers(list) {
+  $('mfoot').querySelectorAll('.app').forEach((n) => n.remove());
+  const grid = $('grid'); grid.replaceChildren();
+  for (const l of list) {
+    const b = document.createElement('button');
+    b.className = 'app'; b.title = `Abrir ${l.name}`; b.innerHTML = IC.app;
+    b.addEventListener('click', (e) => { e.stopPropagation(); isla.launch(l.appId); });
+    if ($('mfoot').querySelectorAll('.app').length < 6) $('mfoot').append(b);
+    const g = document.createElement('button');
+    g.className = 'gapp'; g.title = `Abrir ${l.name}`; g.innerHTML = IC.app + `<span></span>`;
+    g.querySelector('span').textContent = l.name;
+    g.addEventListener('click', (e) => { e.stopPropagation(); isla.launch(l.appId); });
+    grid.append(g);
+    isla.icon(l.appId).then((url) => {
+      if (!url) return;
+      b.replaceChildren(iconImg(url));
+      g.querySelector('svg').replaceWith(iconImg(url));
+    });
+  }
+  const add = document.createElement('button');
+  add.className = 'gapp'; add.title = 'Agregar apps'; add.innerHTML = IC.plus + '<span>Agregar</span>';
+  add.addEventListener('click', (e) => { e.stopPropagation(); isla.openSettings(); });
+  grid.append(add);
+}
+
+/* ── Ajustes en vivo ──────────────────────────────────── */
+let launchKey = '', coverAccent = null;
+function luminance(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+}
+function applyAccent() {
+  island.style.setProperty('--accent', cfg.accentMode === 'cover' && coverAccent ? coverAccent : cfg.accentColor);
+}
+function applySettings(s) {
+  cfg = s;
+  root.style.setProperty('--ink', s.islandColor);
+  root.style.setProperty('--line-w', s.lineWidth + 'px');
+  root.style.setProperty('--line-h', s.lineThickness + 'px');
+  root.style.setProperty('--top', s.topOffset + 'px');
+  root.dataset.motion = s.motion;
+  root.dataset.tone = luminance(s.islandColor) > 0.55 ? 'light' : 'dark';
+  root.classList.toggle('ambient-on', !!s.ambientArt);
+  root.classList.toggle('no-launchers', !s.showLaunchers);
+  root.classList.toggle('pet-on', !!s.pet);
+  if (typeof paintPrivacy === 'function') paintPrivacy();
+  $('clInd').classList.toggle('on', !!s.claudeCode && claudeS.some((x) => x.state === 'working'));
+  idleShown = '';
+  $('seek').dataset.style = s.seekStyle;
+  const key = JSON.stringify(s.launchersInfo) + s.appsCount;
+  if (key !== launchKey) { launchKey = key; renderLaunchers(s.launchersInfo); }
+  if (!s.lyrics) { lyrics = null; $('mediaPane').classList.remove('has-lyrics'); }
+  applyTabs();
+  applyAccent();
+  clockMin = -1;
+  if (!hovered && !toastT && !pinned && !forcedPeek) setState(rest());
+  refreshPeek();
+}
+isla.settings().then(applySettings);
+isla.onSettings(applySettings);
+
+/* ── Texto que se desliza ─────────────────────────────── */
+function swap(el, text, animate) {
+  const cur = el.querySelector('span:not(.out)');
+  if (cur && cur.textContent === text) return;
+  const next = document.createElement('span');
+  next.textContent = text; next.title = text;
+  if (!animate || !cur) { el.replaceChildren(next); return; }
+  el.classList.toggle('back', dir < 0);
+  el.querySelectorAll('.out').forEach((n) => n.remove());
+  cur.className = 'out';
+  next.className = 'in';
+  el.append(next);
+  setTimeout(() => cur.remove(), 300);
+}
+
+/* ── Carátula ─────────────────────────────────────────── */
+async function setArt(src) {
+  let ok = false;
+  if (src) { const im = new Image(); im.src = src; try { await im.decode(); ok = true; } catch {} }
+  for (const box of [$('pArt'), $('fArt')]) {
+    const [a, b] = box.querySelectorAll('img');
+    const front = a.classList.contains('on') ? a : b, back = front === a ? b : a;
+    box.classList.remove('stale');
+    if (!ok) { front.classList.remove('on'); box.classList.remove('has'); continue; }
+    back.src = src; back.classList.add('on'); front.classList.remove('on');
+    box.classList.add('has');
+  }
+  $('ambient').classList.toggle('has', ok);
+  if (ok) { $('ambImg').src = src; accentFrom(src); } else { coverAccent = null; applyAccent(); }
+}
+function accentFrom(src) {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = c.height = 24;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, 24, 24);
+    const d = x.getImageData(0, 0, 24, 24).data;
+    let r = 0, g = 0, bl = 0, w = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      const sat = mx ? (mx - mn) / mx : 0, wt = sat * sat * (mx / 255) + .001;
+      r += d[i] * wt; g += d[i + 1] * wt; bl += d[i + 2] * wt; w += wt;
+    }
+    const [h, s] = rgbToHsl(r / w, g / w, bl / w);
+    coverAccent = s < .12 ? null : `hsl(${h} ${Math.max(55, s * 100)}% 66%)`;
+    applyAccent();
+  };
+  img.src = src;
+}
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, dd = mx - mn;
+  if (!dd) return [0, 0, l];
+  const s = dd / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / dd) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+  return [Math.round(h * 60 + 360) % 360, s, l];
+}
+
+/* ── Media ────────────────────────────────────────────── */
+// "5319275A.WhatsAppDesktop_cv1g…!App" → "WhatsApp"; "C:\…\vlc.exe" → "vlc"
+const prettyApp = (id = '') => {
+  if (/spotify/i.test(id)) return 'Spotify';
+  if (/chrome/i.test(id)) return 'Chrome';
+  if (/msedge/i.test(id)) return 'Edge';
+  if (/firefox/i.test(id)) return 'Firefox';
+  if (/zune|mediaplayer/i.test(id)) return 'Reproductor multimedia';
+  if (id.includes('!')) return id.split('!')[0].split('_')[0].split('.').pop().replace(/(Desktop|App|Music)$/i, '') || id;
+  return (id.split('\\').pop() || '').replace(/\.exe$/i, '');
+};
+
+isla.onMedia((m) => {
+  if (m.type === 'thumb') { if (m.key === st.key) { thumbKey = m.key; setArt(m.data); } return; }
+
+  const changed = m.key !== shownKey;
+  const animate = shownKey !== null;
+  st = { ...m, gotAt: Date.now() };
+  island.classList.toggle('inactive', !m.active);
+
+  if (changed) {
+    shownKey = m.key;
+    lyrics = null; lyricIdx = -2; $('mediaPane').classList.remove('has-lyrics');
+    const title = m.active ? (m.title || 'Sin título') : 'Nada sonando';
+    swap($('pTitle'), title, animate);
+    swap($('fTitle'), title, animate);
+    swap($('fArtist'), m.active ? (m.artist || prettyApp(m.app)) : 'Poné algo en cualquier app', animate);
+    if (!m.active) setArt(null);
+    else if (thumbKey !== m.key) document.querySelectorAll('.art').forEach((a) => a.classList.add('stale'));
+    dir = 1;
+    if (cfg.peekOnTrackChange && animate && m.active && island.dataset.state === 'line' && !hovered && !toastT) {
+      island.dataset.peek = 'music';
+      setState('peek');
+      clearTimeout(peekT);
+      peekT = setTimeout(() => { if (!hovered) { setState(rest()); refreshPeek(); } }, 2800);
+    }
+  }
+  paintPlayer();
+  paintPlaying();
+  refreshPeek();
+});
+
+let playerKey = '';
+function paintPlayer() {
+  const list = st.sessions || [];
+  $('player').classList.toggle('many', list.length > 1);
+  $('playerName').textContent = st.active ? prettyApp(st.app) : '';
+  $('playerCount').textContent = list.length > 1 ? `${list.indexOf(st.app) + 1}/${list.length}` : '';
+  if (st.app !== playerKey) {
+    playerKey = st.app;
+    $('playerIcon').replaceChildren();
+    if (st.app) isla.icon(st.app).then((u) => { if (u && st.app === playerKey) $('playerIcon').replaceChildren(iconImg(u)); });
+  }
+}
+function paintPlaying() {
+  island.classList.toggle('playing', !!st.playing);
+  // el gato camina rápido con música y se sienta si no suena nada
+  $('pet').classList.toggle('sit', !st.playing);
+  setPlayIcon($('playPath'), st.playing);
+}
+
+/* ── Letras ───────────────────────────────────────────── */
+let lyricIdx = -2;
+isla.onLyrics(({ key, lines }) => {
+  if (key !== st.key || !cfg.lyrics) return;
+  lyrics = lines && lines.length ? lines : null;
+  lyricIdx = -2;
+  $('mediaPane').classList.toggle('has-lyrics', !!lyrics);
+});
+function paintLyric(pos) {
+  if (!lyrics) return;
+  let i = -1;
+  for (let k = 0; k < lyrics.length && lyrics[k].t <= pos + 0.25; k++) i = k;
+  if (i === lyricIdx) return;
+  lyricIdx = i;
+  dir = 1;
+  swap($('lyric'), i >= 0 ? (lyrics[i].text || '♪') : '', true);
+}
+
+/* ── Progreso y seek ──────────────────────────────────── */
+function currentPos() {
+  let pos = st.position || 0;
+  const base = st.updated > 0 && Date.now() - st.updated < 864e5 ? st.updated : st.gotAt;
+  if (st.playing && base) pos += (Date.now() - base) / 1000;
+  return Math.min(pos, st.duration || pos);
+}
+const fmt = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`; };
+
+const seek = $('seek');
+let dragFrac = 0;
+const fracAt = (e) => { const r = seek.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+seek.addEventListener('pointerdown', (e) => {
+  if (!st.duration) return;
+  dragging = true; seek.classList.add('drag'); seek.setPointerCapture(e.pointerId); dragFrac = fracAt(e);
+});
+seek.addEventListener('pointermove', (e) => { if (dragging) dragFrac = fracAt(e); });
+seek.addEventListener('pointerup', () => {
+  if (!dragging) return;
+  dragging = false; seek.classList.remove('drag');
+  const sec = dragFrac * st.duration;
+  isla.cmd(`seek ${sec.toFixed(2)}`);
+  st.position = sec; st.updated = Date.now();
+  if (!hovered) scheduleLeave();
+});
+
+// Estilos "onda" y "ecualizador" se dibujan en canvas.
+const cv = $('seekCanvas'), cx = cv.getContext('2d');
+let accentCss = '#7DD3FC', accentAt = 0, amp = 0;
+const barSeed = Array.from({ length: 128 }, (_, i) => 0.35 + 0.65 * Math.abs(Math.sin(i * 12.9898) * 0.5 + Math.sin(i * 0.7) * 0.5));
+function drawSeek(frac, t) {
+  const style = cfg.seekStyle;
+  if (style !== 'wave' && style !== 'bars') return;
+  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  if (t - accentAt > 300) { accentCss = getComputedStyle(island).getPropertyValue('--accent').trim() || accentCss; accentAt = t; }
+  const faint = getComputedStyle(root).getPropertyValue('--faint');
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, w, h);
+  const x = frac * w, mid = h / 2;
+  amp += ((st.playing ? 1 : 0) - amp) * 0.08;
+  if (style === 'wave') {
+    cx.lineWidth = 3; cx.lineCap = 'round';
+    cx.strokeStyle = faint; cx.beginPath(); cx.moveTo(Math.min(w, x + 4), mid); cx.lineTo(w, mid); cx.stroke();
+    cx.strokeStyle = accentCss; cx.beginPath();
+    for (let px = 0; px <= x; px += 1) {
+      const y = mid + Math.sin(px / 4.2 - t / 160) * 3.4 * amp;
+      px === 0 ? cx.moveTo(px, y) : cx.lineTo(px, y);
+    }
+    cx.stroke();
+    cx.fillStyle = accentCss; cx.beginPath(); cx.roundRect(x - 2, mid - 7, 4, 14, 2); cx.fill();
+  } else {
+    const n = Math.floor(w / 5);
+    for (let i = 0; i < n; i++) {
+      const bx = i * 5 + 1, on = bx < x;
+      const live = 0.55 + 0.45 * Math.abs(Math.sin(t / 220 + i * 0.9) * Math.cos(t / 370 - i * 0.37));
+      const bh = Math.max(2, (h - 4) * barSeed[i % barSeed.length] * (on ? (0.35 + 0.65 * (amp * live + (1 - amp) * 0.6)) : 0.5));
+      cx.fillStyle = on ? accentCss : faint;
+      cx.beginPath(); cx.roundRect(bx, mid - bh / 2, 2.5, bh, 1.25); cx.fill();
+    }
+  }
+}
+
+/* ── Portapapeles ─────────────────────────────────────── */
+let clipFilter = 'all', clipKey = '';
+const ago = (t) => {
+  const s = (Date.now() - t) / 1000;
+  if (s < 45) return 'ahora';
+  if (s < 3600) return `hace ${Math.round(s / 60)} min`;
+  if (s < 86400) return `hace ${Math.round(s / 3600)} h`;
+  if (s < 172800) return 'ayer';
+  return `hace ${Math.round(s / 86400)} d`;
+};
+$('cfilters').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  e.stopPropagation();
+  clipFilter = b.dataset.f;
+  $('cfilters').querySelectorAll('[data-f]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  renderClips(true);
+});
+function renderClips(force) {
+  const items = clipsList.filter((i) => clipFilter === 'all' ? true : clipFilter === 'pinned' ? i.pinned : i.kind === clipFilter);
+  const key = clipFilter + items.map((i) => i.id + i.pinned).join();
+  if (!force && key === clipKey) { updateAgo(); return; }
+  clipKey = key;
+  $('ccount').textContent = clipsList.length ? `${clipsList.length} ${clipsList.length === 1 ? 'clip' : 'clips'}` : '';
+  const box = $('cards');
+  if (!items.length) {
+    box.innerHTML = `<div class="empty">${clipFilter === 'all' ? 'Lo que copies va a aparecer acá.' : clipFilter === 'pinned' ? 'Fijá un clip con el alfiler para tenerlo siempre a mano.' : 'No hay nada de este tipo todavía.'}</div>`;
+    return;
+  }
+  box.replaceChildren(...items.map((i, n) => {
+    const c = document.createElement('div');
+    c.className = `card ${i.kind}${i.pinned ? ' pinned' : ''}`;
+    c.style.animationDelay = Math.min(n, 6) * 30 + 'ms';
+    c.title = i.kind === 'image' ? 'Click para copiar la imagen' : 'Click para copiar';
+    const head = document.createElement('div'); head.className = 'chead';
+    const ic = document.createElement('span');
+    const name = document.createElement('span'); name.textContent = i.appName || '';
+    name.style.cssText = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0';
+    const pm = document.createElement('span'); pm.className = 'pinmark'; pm.innerHTML = IC.pin.replace('class="i"', 'class="i" style="width:11px;height:11px;fill:currentColor"');
+    const when = document.createElement('span'); when.className = 'when'; when.dataset.t = i.t; when.textContent = ago(i.t);
+    head.append(ic, name, pm, when);
+    if (i.appPath) isla.fileIcon(i.appPath).then((u) => { if (u) ic.replaceChildren(iconImg(u)); });
+    c.append(head);
+    if (i.kind === 'image' && i.thumb) {
+      const im = iconImg(i.thumb);
+      makeDraggable(im, () => isla.dragClip(i.id));
+      c.append(im);
+      c.title = 'Click para copiar · arrastrala a otra app';
+    } else {
+      const body = document.createElement('div'); body.className = 'cbody';
+      if (i.kind === 'link') {
+        let u; try { u = new URL(i.text.trim()); } catch {}
+        body.innerHTML = IC.link;
+        const b = document.createElement('b'); b.textContent = u ? u.hostname.replace(/^www\./, '') : i.text;
+        const p = document.createElement('span'); p.textContent = u ? (u.pathname + u.search).slice(0, 80) : '';
+        body.append(b, p);
+      } else body.textContent = i.text;
+      c.append(body);
+    }
+    const acts = document.createElement('div'); acts.className = 'cacts';
+    const mk = (html, label, fn) => { const b = document.createElement('button'); b.innerHTML = html; b.title = label; b.ariaLabel = label; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
+    acts.append(mk(IC.pin, i.pinned ? 'Desfijar' : 'Fijar', () => isla.clipPin(i.id)), mk(IC.trash, 'Borrar', () => isla.clipRemove(i.id)));
+    const done = document.createElement('div'); done.className = 'done'; done.innerHTML = IC.check;
+    c.append(acts, done);
+    c.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isla.clipCopy(i.id);
+      c.classList.remove('copied'); void c.offsetWidth; c.classList.add('copied');
+    });
+    return c;
+  }));
+}
+function updateAgo() { document.querySelectorAll('.card .when').forEach((w) => { w.textContent = ago(+w.dataset.t); }); }
+isla.clips().then((l) => { clipsList = l; renderClips(true); });
+isla.onClips((l) => { clipsList = l; renderClips(false); });
+setInterval(updateAgo, 30000);
+
+/* ── Temporizador y cronómetro ────────────────────────── */
+const PRESETS = [1, 5, 10, 15, 25, 45];
+const timer = {
+  mode: 'timer', dur: 300, remaining: 300, endAt: 0, running: false, ringing: false,
+  sw: { running: false, start: 0, acc: 0, laps: [] },
+  left() { return this.running ? Math.max(0, (this.endAt - Date.now()) / 1000) : this.remaining; },
+  swTime() { return this.sw.acc + (this.sw.running ? (Date.now() - this.sw.start) / 1000 : 0); },
+  active() { return (this.running || this.remaining < this.dur) || this.sw.running; },
+  silence() { this.ringing = false; },
+};
+function paintTimer() {
+  const sw = timer.mode === 'sw';
+  document.querySelectorAll('#tmode button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.m === timer.mode));
+  const running = sw ? timer.sw.running : timer.running;
+  $('timerPane').classList.toggle('running', running);
+  setPlayIcon($('tPlayPath'), running);
+  $('tPlay').title = running ? 'Pausar' : 'Empezar';
+  $('tSec').innerHTML = sw && timer.sw.running ? IC.flag : IC.reset;
+  $('tSec').title = sw && timer.sw.running ? 'Vuelta' : 'Reiniciar';
+  const side = $('tSide');
+  if (sw) {
+    side.innerHTML = timer.sw.laps.slice(-3).map((l, k, a) => `<span class="lap">Vuelta ${timer.sw.laps.length - a.length + k + 1} · ${fmtSw(l)}</span>`).join('');
+  } else {
+    side.replaceChildren(...PRESETS.map((m) => {
+      const b = document.createElement('button'); b.textContent = `${m} min`;
+      b.onclick = (e) => { e.stopPropagation(); timer.dur = timer.remaining = m * 60; if (timer.running) timer.endAt = Date.now() + timer.dur * 1000; paintTimer(); };
+      return b;
+    }));
+  }
+  refreshPeek();
+}
+const fmtSw = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}.${String(Math.floor((s % 1) * 10))}`;
+$('tmode').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (!b) return; e.stopPropagation(); timer.mode = b.dataset.m; paintTimer(); });
+$('tPlay').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (timer.mode === 'sw') {
+    const s = timer.sw;
+    if (s.running) { s.acc = timer.swTime(); s.running = false; } else { s.start = Date.now(); s.running = true; }
+  } else if (timer.running) { timer.remaining = timer.left(); timer.running = false; }
+  else { if (timer.remaining <= 0) timer.remaining = timer.dur; timer.endAt = Date.now() + timer.remaining * 1000; timer.running = true; }
+  paintTimer();
+});
+$('tSec').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (timer.mode === 'sw') {
+    const s = timer.sw;
+    if (s.running) s.laps.push(timer.swTime()); else { s.acc = 0; s.laps = []; }
+  } else { timer.running = false; timer.remaining = timer.dur; }
+  paintTimer();
+});
+$('tDigits').addEventListener('wheel', (e) => {
+  if (timer.mode !== 'timer' || timer.running) return;
+  e.preventDefault(); e.stopPropagation();
+  timer.dur = Math.max(60, Math.min(180 * 60, Math.round(timer.dur / 60 - Math.sign(e.deltaY)) * 60));
+  timer.remaining = timer.dur;
+  paintTimer();
+}, { passive: false });
+function timerDone() {
+  timer.running = false; timer.remaining = timer.dur; timer.ringing = true;
+  paintTimer();
+  toast({ icon: IC.bell, title: 'Terminó el temporizador', value: fmt(timer.dur), ms: 8000, force: true });
+  if (cfg.timerSound) chime();
+}
+function chime() {
+  try {
+    const ac = new AudioContext();
+    [0, 0.22, 0.44].forEach((t, k) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = k === 2 ? 1175 : 880;
+      g.gain.setValueAtTime(0, ac.currentTime + t);
+      g.gain.linearRampToValueAtTime(0.18, ac.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + t + 0.5);
+      o.connect(g).connect(ac.destination); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.55);
+    });
+    setTimeout(() => ac.close(), 1500);
+  } catch {}
+}
+paintTimer();
+
+/* ── Reloj en reposo ──────────────────────────────────── */
+const DOTS = { 0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001',
+  5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111' };
+let clockMin = -1;
+function paintClock(now) {
+  const key = now.getHours() * 60 + now.getMinutes() + cfg.clockStyle + cfg.clock24h;
+  if (key === clockMin) return;
+  clockMin = key;
+  let hh = now.getHours();
+  if (!cfg.clock24h) hh = hh % 12 || 12;
+  const time = `${cfg.clock24h ? String(hh).padStart(2, '0') : hh}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const date = now.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+  const el = $('clock');
+  if (cfg.clockStyle === 'dots') {
+    el.innerHTML = `<div class="clock-dots"><div class="dm">${[...time].map((ch) => ch === ':'
+      ? '<div class="ch colon"><i></i><i class="on"></i><i></i><i class="on"></i><i></i></div>'
+      : `<div class="ch">${[...DOTS[ch]].map((b) => `<i${b === '1' ? ' class="on"' : ''}></i>`).join('')}</div>`).join('')}</div><span></span></div>`;
+  } else if (cfg.clockStyle === 'bold') {
+    el.innerHTML = '<div class="clock-bold"><b></b></div>';
+  } else {
+    el.innerHTML = '<div class="clock-classic"><b></b><span></span></div>';
+  }
+  const b = el.querySelector('b'); if (b) b.textContent = time;
+  const s = el.querySelector('span'); if (s) s.textContent = date;
+}
+
+// En reposo: reloj, y si está el dólar activado, se alternan cada 8 segundos.
+let idleShown = '';
+function paintIdle(now) {
+  const showD = cfg.dolar && dolarData && Math.floor(now / 8000) % 2 === 1;
+  const key = showD ? 'd' + dolarData.venta : 'c';
+  if (key !== idleShown) {
+    idleShown = key; clockMin = -1;
+    if (showD) {
+      const el = $('clock'); el.replaceChildren();
+      const box = document.createElement('div'); box.className = 'dolar';
+      const lbl = document.createElement('span'); lbl.className = 't2'; lbl.textContent = 'Dólar blue'; lbl.style.color = 'var(--muted)'; lbl.style.fontSize = '12px';
+      const v = document.createElement('b'); v.textContent = '$' + Math.round(dolarData.venta).toLocaleString('es-AR');
+      const ch = document.createElement('span');
+      const pct = (dolarData.change || 0) * 100;
+      ch.className = 'chg ' + (pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat');
+      ch.innerHTML = pct > 0.05 ? IC.arrowUp : pct < -0.05 ? IC.arrowDown : '';
+      ch.append(Math.abs(pct).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + '%');
+      box.append(lbl, v, ch); el.append(box);
+      return;
+    }
+  }
+  if (!showD) paintClock(now);
+}
+
+/* ── Bucle de UI ──────────────────────────────────────── */
+let lastTimerActive = false;
+function tick(t) {
+  const now = new Date();
+  // timer
+  if (timer.running && timer.left() <= 0) timerDone();
+  const tActive = timer.active();
+  if (tActive !== lastTimerActive) { lastTimerActive = tActive; refreshPeek(); }
+  const state = island.dataset.state;
+
+  // progreso de la línea: el timer manda si está corriendo
+  const dur = st.duration || 0;
+  const pos = dragging ? dragFrac * dur : currentPos();
+  let p = dur ? pos / dur : 0;
+  if (timer.running || (timer.mode === 'timer' && timer.remaining < timer.dur)) p = 1 - timer.left() / timer.dur;
+  island.style.setProperty('--p', Math.max(0, Math.min(1, p)).toFixed(4));
+  if (dur) seek.style.setProperty('--p', (pos / dur).toFixed(4));
+
+  if (state === 'open' && tab === 'media') {
+    $('pos').textContent = fmt(pos);
+    $('rem').textContent = '-' + fmt(dur - pos);
+    drawSeek(dur ? pos / dur : 0, t);
+    paintLyric(pos);
+  }
+  if (state === 'open' && tab === 'timer') {
+    if (timer.mode === 'sw') {
+      $('tDigits').textContent = fmtSw(timer.swTime());
+      $('tProg').style.setProperty('--tp', (timer.swTime() % 60) / 60);
+    } else {
+      $('tDigits').textContent = fmt(Math.ceil(timer.left()));
+      $('tProg').style.setProperty('--tp', 1 - timer.left() / timer.dur);
+    }
+  }
+  if (island.dataset.peek === 'timer') {
+    const sw = timer.sw.running && !(timer.running || timer.remaining < timer.dur);
+    $('ptDigits').textContent = sw ? fmtSw(timer.swTime()).slice(0, -2) : fmt(Math.ceil(timer.left()));
+    $('ptLabel').textContent = sw ? 'Cronómetro' : timer.running ? 'Temporizador' : 'En pausa';
+    $('ptBar').style.setProperty('--v', sw ? (timer.swTime() % 60) / 60 : 1 - timer.left() / timer.dur);
+  }
+  if (island.dataset.peek === 'idle') paintIdle(now);
+  if (island.dataset.peek === 'act') paintLive();
+  // foco: el borde se llena con el temporizador
+  const focusing = !!cfg.focusBorder && timer.mode === 'timer' && (timer.running || timer.remaining < timer.dur);
+  island.classList.toggle('focusing', focusing);
+  if (focusing) island.style.setProperty('--tp2', (1 - timer.left() / timer.dur).toFixed(4));
+  // la reunión entra y sale sola según la hora
+  if (meetings.length && (t | 0) % 1000 < 17) refreshPeek();
+  requestAnimationFrame(tick);
+}
+paintPlaying();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

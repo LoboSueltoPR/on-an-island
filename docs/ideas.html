@@ -1,0 +1,325 @@
+<title>Ideas para Isla</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Geist:wght@400;500;600&display=swap">
+<style>
+  /* Layout: un escritorio oscuro con la isla real arriba que va cambiando, y debajo las ideas en una grilla agrupada. */
+  :root {
+    --bg: #0d0e11;
+    --desk: #15171c;
+    --panel: #17181d;
+    --line: #25272e;
+    --fg: #eceef2;
+    --muted: #8b909b;
+    --ink: #000;
+    --live: #34c759;
+    --warn: #ff9f0a;
+    --hot: #ff453a;
+    --display: "Bricolage Grotesque", "Segoe UI Variable Display", system-ui, sans-serif;
+    --body: "Geist", "Segoe UI Variable Text", system-ui, sans-serif;
+    --spring: linear(0, .034 2%, .13 4.3%, .27 6.8%, .53 11.5%, .74 16.5%, .88 21.5%, .97 27%, 1.02 33%, 1.033 39%, 1.028 46%, 1.012 57%, 1.002 70%, 1);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  header h1 { font: 700 clamp(34px, 5vw, 56px)/1 var(--display); letter-spacing: -.03em; margin: 0; text-wrap: balance; }
+  header p { color: var(--muted); max-width: 60ch; margin: 12px 0 0; }
+
+  /* ── El escritorio con la isla grande ── */
+  .desk {
+    position: relative; margin-top: 32px; border-radius: 22px; overflow: hidden; height: 300px;
+    background:
+      radial-gradient(90% 70% at 20% 110%, #23324a 0%, transparent 60%),
+      radial-gradient(70% 60% at 90% 0%, #2a2036 0%, transparent 55%),
+      var(--desk);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .desk .stage { position: absolute; left: 50%; top: 14px; transform-origin: top center; transform: translateX(-50%) scale(var(--s, 1.35)); }
+  .desk .caption { position: absolute; left: 24px; right: 24px; bottom: 20px; display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+  .desk .caption b { font: 700 22px/1.1 var(--display); letter-spacing: -.01em; display: block; }
+  .desk .caption span { color: var(--muted); font-size: 14px; }
+  .dots { display: flex; gap: 6px; flex: none; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .3s, width .4s var(--spring); }
+  .dots i.on { background: var(--fg); width: 18px; border-radius: 3px; }
+
+  /* ── La isla (misma pieza para la grande y las chicas) ── */
+  .isl {
+    background: var(--ink); color: #f4f4f6; position: relative; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 14px 40px -14px rgba(0,0,0,.8);
+    transition: width .55s var(--spring), height .55s var(--spring), border-radius .55s var(--spring);
+    font-family: var(--body);
+  }
+  .isl .in { position: absolute; inset: 0; display: flex; align-items: center; gap: 12px; padding: 0 14px; transition: opacity .18s, filter .25s; }
+  .isl .in.fade { opacity: 0; filter: blur(6px); }
+  .t1 { font-weight: 600; font-size: 13.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t2 { color: rgba(244,244,246,.55); font-size: 12px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grow { flex: 1; min-width: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+  .ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .round { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 600; font-size: 14px;
+            background: linear-gradient(140deg, #6a8dff, #b46bff); }
+  .pill { height: 28px; padding: 0 12px; border-radius: 14px; display: grid; place-items: center; font-size: 12px; font-weight: 600; flex: none; }
+
+  /* llamada */
+  .ring { position: relative; }
+  .ring::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 0 rgba(52,199,89,.6); animation: ring 1.6s infinite; }
+  @keyframes ring { 70% { box-shadow: 0 0 0 10px rgba(52,199,89,0); } 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0); } }
+  /* notificación */
+  .badge { position: absolute; right: -2px; bottom: -2px; width: 16px; height: 16px; border-radius: 50%; background: #25d366; border: 2px solid #000; }
+  /* descarga */
+  .prog circle { fill: none; stroke-width: 3.5; }
+  /* captura */
+  .shot { width: 92px; height: 62px; border-radius: 10px; flex: none; overflow: hidden; position: relative; background: #1c2230; animation: drop 3.6s var(--spring) infinite; }
+  .shot i { position: absolute; border-radius: 3px; }
+  @keyframes drop { 0% { transform: translateY(-80px) rotate(-6deg); } 18%, 100% { transform: none; } }
+  /* privacidad */
+  .pdot { width: 7px; height: 7px; border-radius: 50%; flex: none; animation: breathe 2s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .45; } }
+  /* foco: el borde de la isla es el progreso */
+  .edge { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .edge rect { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+  /* claude */
+  .spark { animation: spin 6s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .typing i { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; margin-left: 2px; animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 50% { opacity: .2; } }
+  /* fútbol */
+  .flag { width: 22px; height: 22px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+  .live { width: 7px; height: 7px; border-radius: 50%; background: var(--hot); animation: breathe 1.2s infinite; }
+  .goal { animation: goal 4s infinite; }
+  @keyframes goal { 0%, 70%, 100% { background: #000; } 76%, 86% { background: linear-gradient(90deg, #75aadb, #fff 50%, #75aadb); } }
+  /* visualizador */
+  .viz { display: flex; align-items: center; gap: 3px; height: 26px; flex: 1; }
+  .viz i { flex: 1; border-radius: 2px; height: 30%; animation: vz .9s ease-in-out infinite alternate; }
+  @keyframes vz { to { height: 100%; } }
+  /* mascota */
+  .cat { position: absolute; bottom: 100%; left: 0; animation: walk 7s linear infinite; }
+  .cat svg { display: block; animation: face 7s steps(1) infinite; }
+  @keyframes walk { 0% { transform: translateX(0); } 50% { transform: translateX(118px); } 100% { transform: translateX(0); } }
+  @keyframes face { 0% { transform: scaleX(1); } 50% { transform: scaleX(-1); } }
+  .cat .l1 { animation: legs .3s steps(1) infinite; } .cat .l2 { animation: legs .3s steps(1) infinite reverse; }
+  @keyframes legs { 0% { opacity: 1; } 50% { opacity: 0; } }
+
+  /* ── Grilla de ideas ── */
+  section { margin-top: 56px; }
+  section > h2 { font: 700 26px/1.1 var(--display); letter-spacing: -.02em; margin: 0; }
+  section > p { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
+  .card { background: var(--panel); border-radius: 18px; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; display: flex; flex-direction: column;
+          cursor: pointer; transition: box-shadow .2s, transform .35s var(--spring); text-align: left; color: inherit; font: inherit; border: 0; padding: 0; }
+  .card:hover { box-shadow: inset 0 0 0 1px #3a3d47; transform: translateY(-2px); }
+  .card:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  .card[aria-current=true] { box-shadow: inset 0 0 0 1.5px var(--fg); }
+  .card .mini { height: 132px; position: relative; overflow: hidden;
+                background: radial-gradient(80% 90% at 50% 0%, #20232c 0%, var(--desk) 70%); border-bottom: 1px solid var(--line); }
+  .card .mini .stage { position: absolute; left: 50%; top: 22px; transform-origin: top center; transform: translateX(-50%) scale(var(--s, .8)); }
+  .card .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .card h3 { font: 700 18px/1.2 var(--display); letter-spacing: -.01em; margin: 0; display: flex; align-items: center; gap: 10px; }
+  .card .what { margin: 0; font-size: 14px; }
+  .card .how { margin: 0; font-size: 13px; color: var(--muted); }
+  .card .how b { color: var(--fg); font-weight: 500; }
+  .effort { margin-left: auto; font: 500 11.5px/1 var(--body); padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+  .e1 { background: rgba(52,199,89,.14); color: #6ee08f; }
+  .e2 { background: rgba(255,159,10,.14); color: #ffbe5c; }
+  .e3 { background: rgba(255,69,58,.14); color: #ff8a80; }
+
+  footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; max-width: 70ch; }
+
+  @media (max-width: 560px) { .desk { height: 260px; } .desk .caption { flex-direction: column; align-items: start; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ideas para Isla</h1>
+    <p>Doce cosas que la isla podría hacer después de música, portapapeles y timer. Arriba se ven en vivo; tocá cualquier tarjeta para verla en grande.</p>
+  </header>
+
+  <div class="desk" id="desk" aria-live="polite">
+    <div class="stage" id="heroStage"><div class="isl" id="hero"><div class="in" id="heroIn"></div></div></div>
+    <div class="caption"><div><b id="heroName"></b><span id="heroWhat"></span></div><div class="dots" id="dots"></div></div>
+  </div>
+
+  <section>
+    <h2>Actividades en vivo</h2>
+    <p>Cosas que pasan ahora y que no querés perderte sin cambiar de ventana.</p>
+    <div class="grid" data-group="live"></div>
+  </section>
+
+  <section>
+    <h2>Del sistema</h2>
+    <p>Lo que Windows esconde en rincones o directamente no muestra.</p>
+    <div class="grid" data-group="sys"></div>
+  </section>
+
+  <section>
+    <h2>Para vos</h2>
+    <p>Pensadas para cómo usás la PC: programar con Claude, el dólar, el fútbol.</p>
+    <div class="grid" data-group="you"></div>
+  </section>
+
+  <footer>Los nombres, montos y resultados de las maquetas son de ejemplo. "Fácil" quiere decir que se arma con lo que Isla ya tiene; "Difícil", que necesita una pieza nueva de Windows o un servicio externo.</footer>
+</div>
+
+<script>
+const I = {
+  phone: '<svg class="ic" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
+  hang: '<svg class="ic" viewBox="0 0 24 24" style="transform:rotate(135deg)"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
+  cal: '<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  file: '<svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  mic: '<svg class="ic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>',
+  up: '<svg class="ic" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m6 15 6-6 6 6"/></svg>',
+};
+const spark = (c = '#e8875f', s = 22) => `<svg class="spark" width="${s}" height="${s}" viewBox="0 0 24 24">${[0,45,90,135].map(a => `<rect x="11" y="2" width="2.2" height="20" rx="1.1" fill="${c}" transform="rotate(${a} 12 12)"/>`).join('')}</svg>`;
+const cat = `<svg width="22" height="16" viewBox="0 0 11 8" shape-rendering="crispEdges">
+  <g fill="#f4f4f6"><rect x="1" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="1" y="1" width="4" height="3"/><rect x="5" y="2" width="5" height="3"/><rect x="10" y="1" width="1" height="2"/></g>
+  <g fill="#000"><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/></g>
+  <g class="l1" fill="#f4f4f6"><rect x="5" y="5" width="1" height="2"/><rect x="9" y="5" width="1" height="2"/></g>
+  <g class="l2" fill="#f4f4f6"><rect x="6" y="5" width="1" height="2"/><rect x="8" y="5" width="1" height="2"/></g></svg>`;
+const vizColors = ['#ff6b6b','#ff9f43','#feca57','#48dbfb','#5f8bff','#a55eea'];
+
+const A = [
+  { id: 'call', g: 'live', name: 'Llamada entrante', e: 2, w: 380, h: 64,
+    what: 'Te llaman por WhatsApp o Teams y la isla baja con la foto, el nombre y dos botones.',
+    how: '<b>De dónde:</b> las notificaciones de Windows (UserNotificationListener). Atender o cortar dispara el botón de la propia notificación.',
+    html: `<div class="avatar">JP</div><div class="grow"><div class="t1">Juan · WhatsApp</div><div class="t2">Llamada entrante</div></div>
+      <div class="round" style="background:var(--hot)">${I.hang}</div><div class="round ring" style="background:var(--live)">${I.phone}</div>` },
+  { id: 'notif', g: 'live', name: 'Mensajes', e: 2, w: 380, h: 70,
+    what: 'Entra un mensaje y lo leés en la isla. Click para expandir y ver los últimos tres.',
+    how: '<b>De dónde:</b> las mismas notificaciones de Windows. Se pueden silenciar por app.',
+    html: `<div class="avatar" style="position:relative;background:linear-gradient(140deg,#ffb35c,#ff5e7e)">SV<span class="badge"></span></div>
+      <div class="grow"><div class="t1">Grupo SVN</div><div class="t2">¿Subiste lo del deploy? Juan lo necesita hoy</div></div><div class="t2" style="flex:none">ahora</div>` },
+  { id: 'meet', g: 'live', name: 'Próxima reunión', e: 2, w: 350, h: 50,
+    what: 'Cinco minutos antes aparece la reunión con la cuenta regresiva y el botón para entrar.',
+    how: '<b>De dónde:</b> tu Google Calendar o Outlook, leyendo el link de Meet o Teams del evento.',
+    html: `<span style="color:#7cb8ff">${I.cal}</span><div class="grow"><div class="t1">Daily con Juan</div><div class="t2 num">empieza en <span data-count="299">4:59</span></div></div>
+      <div class="pill" style="background:#3b82f6">Unirse</div>` },
+  { id: 'dl', g: 'live', name: 'Descargas', e: 1, w: 320, h: 46,
+    what: 'Lo que estás bajando se ve como un anillo que se llena. Al terminar, click y se abre.',
+    how: '<b>De dónde:</b> mirar la carpeta Descargas (los .crdownload de Chrome cambian de tamaño).',
+    html: `<svg class="prog" width="26" height="26" viewBox="0 0 26 26" style="flex:none;transform:rotate(-90deg)"><circle cx="13" cy="13" r="10" stroke="#2a2d36"/><circle cx="13" cy="13" r="10" stroke="#5ac8fa" stroke-dasharray="62.8" data-ring="1" stroke-dashoffset="62.8"/></svg>
+      <div class="grow"><div class="t1">informe-final.pdf</div></div><div class="t2 num" data-pct="1">0%</div>` },
+
+  { id: 'shot', g: 'sys', name: 'Captura al toque', e: 1, w: 330, h: 86, r: 28,
+    what: 'Sacás una captura con Win+Shift+S y la miniatura cae en la isla. La arrastrás directo a WhatsApp o a un mail.',
+    how: '<b>De dónde:</b> ya lo tenemos: el portapapeles detecta la imagen. Falta permitir arrastrarla afuera.',
+    html: `<div class="shot"><i style="left:8px;top:8px;width:40px;height:6px;background:#4b5671"></i><i style="left:8px;top:20px;width:76px;height:4px;background:#2f3749"></i><i style="left:8px;top:28px;width:60px;height:4px;background:#2f3749"></i><i style="left:8px;top:40px;width:34px;height:14px;background:#5f8bff"></i></div>
+      <div class="grow"><div class="t1">Captura guardada</div><div class="t2">Arrastrala a cualquier app</div></div>` },
+  { id: 'priv', g: 'sys', name: 'Micrófono y cámara', e: 1, w: 210, h: 32,
+    what: 'Un punto naranja si una app usa el micrófono, verde si usa la cámara. Como en el iPhone.',
+    how: '<b>De dónde:</b> Windows lo anota en el registro (CapabilityAccessManager). Click y ves qué app es.',
+    html: `<span class="t2" style="flex:1">Zoom</span><span class="pdot" style="background:var(--warn)"></span><span class="pdot" style="background:var(--live);animation-delay:.6s"></span>` },
+  { id: 'focus', g: 'sys', name: 'Foco con el borde', e: 1, w: 300, h: 42,
+    what: 'Un pomodoro donde el propio borde de la isla se va dibujando a medida que pasa el tiempo.',
+    how: '<b>De dónde:</b> el temporizador que ya tiene Isla, con otra forma de mostrarlo.',
+    html: `<svg class="edge" viewBox="0 0 300 42" preserveAspectRatio="none"><rect x="1.5" y="1.5" width="297" height="39" rx="19.5" stroke="#bf5af2" pathLength="100" stroke-dasharray="100" data-edge="1" stroke-dashoffset="100"/></svg>
+      <div class="grow t1">Foco</div><div class="t1 num" data-count="1112">18:32</div>` },
+  { id: 'viz', g: 'sys', name: 'Ecualizador de verdad', e: 3, w: 320, h: 42,
+    what: 'Las barras se mueven con el sonido real de la PC, por frecuencias, no con una animación inventada.',
+    how: '<b>De dónde:</b> capturar el audio de salida de Windows (WASAPI loopback) y hacerle una FFT.',
+    html: `<div class="viz">${Array.from({ length: 24 }, (_, i) => `<i style="background:${vizColors[Math.floor(i / 4)]};animation-duration:${(.35 + (i * 37 % 50) / 100).toFixed(2)}s;animation-delay:-${(i * 13 % 9) / 10}s"></i>`).join('')}</div>` },
+
+  { id: 'claude', g: 'you', name: 'Claude Code en vivo', e: 2, w: 370, h: 54,
+    what: 'Ves qué está haciendo Claude mientras programa, y cuando necesita permiso lo aprobás desde la isla.',
+    how: '<b>De dónde:</b> los hooks de Claude Code le avisan a Isla por un puerto local cuando arranca, pide permiso o termina.',
+    html: `${spark()}<div class="grow"><div class="t1">Claude Code · isla</div><div class="t2" data-cycle="Editando index.html|Corriendo los tests|Necesita tu permiso">Editando index.html</div></div>
+      <div class="pill" style="background:rgba(255,255,255,.1)"><span class="typing"><i></i><i></i><i></i></span></div>` },
+  { id: 'dolar', g: 'you', name: 'Dólar blue', e: 1, w: 270, h: 40,
+    what: 'La cotización en la cápsula cuando no suena nada, con la flecha si subió o bajó en el día.',
+    how: '<b>De dónde:</b> dolarapi.com, gratis y sin cuenta. Se actualiza cada 15 minutos.',
+    html: `<span class="t2" style="flex:1">Dólar blue</span><span class="t1 num" style="font-size:15px">$1.485</span><span class="num" style="display:flex;align-items:center;gap:2px;color:#6ee08f;font-size:12px">${I.up}0,7%</span>` },
+  { id: 'futbol', g: 'you', name: 'Partido en vivo', e: 2, w: 300, h: 44,
+    what: 'El resultado de la Selección o tu club en la isla. Cuando hay gol, se pinta de celeste y blanco.',
+    how: '<b>De dónde:</b> una API de fútbol con clave gratuita (por ejemplo, football-data.org).',
+    cls: 'goal',
+    html: `<span class="flag" style="background:linear-gradient(#75aadb 33%,#fff 33% 66%,#75aadb 66%)"></span><span class="t1 num" style="font-size:15px;mix-blend-mode:difference">ARG 2 – 1 FRA</span><span class="flag" style="background:linear-gradient(90deg,#1f4bb8 33%,#fff 33% 66%,#e2352d 66%)"></span>
+      <span class="grow"></span><span class="live"></span><span class="t2 num">78'</span>` },
+  { id: 'pet', g: 'you', name: 'Mascota en la línea', e: 1, w: 160, h: 5, overflow: true,
+    what: 'Un gatito de pixeles que camina por arriba de la línea, se sienta cuando no hacés nada y salta si suena música.',
+    how: '<b>De dónde:</b> todo local, dibujado en la propia isla. Se puede elegir entre varios bichos.',
+    html: `<div class="cat">${cat}</div>` },
+];
+
+/* ── Isla de una idea ── */
+function islandOf(a) {
+  const el = document.createElement('div');
+  el.className = 'isl' + (a.cls ? ' ' + a.cls : '');
+  el.style.width = a.w + 'px'; el.style.height = a.h + 'px';
+  el.style.borderRadius = (a.r ?? a.h / 2) + 'px';
+  if (a.overflow) el.style.overflow = 'visible';
+  el.innerHTML = `<div class="in">${a.html}</div>`;
+  return el;
+}
+const fit = (stage, w, max) => {
+  const avail = stage.parentElement.clientWidth - 32;
+  stage.style.setProperty('--s', Math.min(max, avail / w).toFixed(3));
+};
+
+/* ── Grilla ── */
+const cards = [];
+for (const a of A) {
+  const card = document.createElement('button');
+  card.className = 'card'; card.type = 'button';
+  card.setAttribute('aria-label', `Ver ${a.name} en grande`);
+  card.innerHTML = `<div class="mini"><div class="stage"></div></div><div class="body">
+    <h3>${a.name}<span class="effort e${a.e}">${['Fácil', 'Media', 'Difícil'][a.e - 1]}</span></h3>
+    <p class="what">${a.what}</p><p class="how">${a.how}</p></div>`;
+  const stage = card.querySelector('.stage');
+  stage.append(islandOf(a));
+  if (a.id === 'pet') stage.style.top = '58px';
+  card.addEventListener('click', () => { show(A.indexOf(a), true); document.getElementById('desk').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+  document.querySelector(`.grid[data-group=${a.g}]`).append(card);
+  cards.push({ card, stage, a });
+}
+
+/* ── Isla grande ── */
+const hero = document.getElementById('hero'), heroIn = document.getElementById('heroIn'), heroStage = document.getElementById('heroStage');
+const dots = document.getElementById('dots');
+dots.innerHTML = A.map(() => '<i></i>').join('');
+let cur = -1, pauseUntil = 0;
+function show(i, byUser) {
+  cur = i;
+  const a = A[i];
+  if (byUser) pauseUntil = Date.now() + 14000;
+  hero.className = 'isl' + (a.cls ? ' ' + a.cls : '');
+  hero.style.width = a.w + 'px'; hero.style.height = a.h + 'px';
+  hero.style.borderRadius = (a.r ?? a.h / 2) + 'px';
+  hero.style.overflow = a.overflow ? 'visible' : '';
+  heroStage.style.top = a.id === 'pet' ? '70px' : '14px';
+  heroIn.classList.add('fade');
+  setTimeout(() => { heroIn.innerHTML = a.html; heroIn.classList.remove('fade'); }, 180);
+  document.getElementById('heroName').textContent = a.name;
+  document.getElementById('heroWhat').textContent = a.what;
+  [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+  cards.forEach((c, k) => c.card.setAttribute('aria-current', k === i));
+  fitAll();
+}
+function fitAll() {
+  if (cur >= 0) fit(heroStage, A[cur].w, 1.4);
+  cards.forEach((c) => fit(c.stage, c.a.w, .82));
+}
+addEventListener('resize', fitAll);
+show(0);
+setInterval(() => { if (Date.now() > pauseUntil) show((cur + 1) % A.length); }, 3800);
+
+/* ── Datos que se mueven en las maquetas ── */
+let t0 = Date.now();
+setInterval(() => {
+  const el = (Date.now() - t0) / 1000;
+  document.querySelectorAll('[data-count]').forEach((n) => {
+    const left = Math.max(0, +n.dataset.count - Math.floor(el));
+    n.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  });
+  const pct = Math.floor((el * 9) % 101);
+  document.querySelectorAll('[data-pct]').forEach((n) => { n.textContent = pct + '%'; });
+  document.querySelectorAll('[data-ring]').forEach((n) => n.setAttribute('stroke-dashoffset', (62.8 * (1 - pct / 100)).toFixed(1)));
+  document.querySelectorAll('[data-edge]').forEach((n) => n.setAttribute('stroke-dashoffset', (100 - (el * 4) % 100).toFixed(1)));
+  const k = Math.floor(el / 2.2);
+  document.querySelectorAll('[data-cycle]').forEach((n) => { const o = n.dataset.cycle.split('|'); n.textContent = o[k % o.length]; n.style.color = o[k % o.length].startsWith('Necesita') ? '#ffbe5c' : ''; });
+}, 250);
+</script>
